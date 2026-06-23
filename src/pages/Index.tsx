@@ -1,17 +1,299 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from 'react';
+import Icon from '@/components/ui/icon';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
+import ProgressRing from '@/components/nutrition/ProgressRing';
+import MacroBar from '@/components/nutrition/MacroBar';
+import { toast } from 'sonner';
+
+const FOOD_IMG =
+  'https://cdn.poehali.dev/projects/e6e9bd5f-1d4b-4442-bfac-18c3d0c53b14/files/31646f36-1cec-4eba-8747-044a81070fc8.jpg';
+
+const goals = { cal: 2100, protein: 140, fat: 70, carb: 230, fiber: 30 };
+
+const meals = [
+  { name: 'Боул с лососем', time: '08:30', img: FOOD_IMG, cal: 520, protein: 38, fat: 24, carb: 41, fiber: 9 },
+  { name: 'Греческий салат', time: '13:15', img: FOOD_IMG, cal: 310, protein: 12, fat: 22, carb: 18, fiber: 6 },
+  { name: 'Овсянка с ягодами', time: '17:40', img: FOOD_IMG, cal: 280, protein: 9, fat: 6, carb: 48, fiber: 7 },
+];
+
+const eaten = meals.reduce(
+  (a, m) => ({
+    cal: a.cal + m.cal,
+    protein: a.protein + m.protein,
+    fat: a.fat + m.fat,
+    carb: a.carb + m.carb,
+    fiber: a.fiber + m.fiber,
+  }),
+  { cal: 0, protein: 0, fat: 0, carb: 0, fiber: 0 }
+);
+
+const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
 const Index = () => {
+  const [tab, setTab] = useState<'day' | 'goals' | 'profile'>('day');
+  const [activeDay, setActiveDay] = useState(2);
+
+  const notify = () => toast('Функция в разработке', { description: 'Напишите, что должно происходить — настрою.' });
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4 color-black text-black">Добро пожаловать!</h1>
-        <p className="text-xl text-gray-600">тут будет отображаться ваш проект</p>
-      </div>
-      <span className="absolute bottom-8 left-1/2 -translate-x-1/2 inline-block bg-[#FF6637] text-white text-sm px-4 py-2 rounded-full whitespace-nowrap">
-        Подождите 5 минут, Юра создает первую версию проекта с нуля
-      </span>
+    <div className="min-h-screen bg-background pb-28">
+      <header className="max-w-2xl mx-auto px-5 pt-10 pb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center">
+            <Icon name="Leaf" size={20} className="text-primary-foreground" />
+          </div>
+          <span className="font-display text-2xl font-extrabold tracking-tight">Eatwise</span>
+        </div>
+        <button onClick={notify} className="w-10 h-10 rounded-2xl bg-card border border-border flex items-center justify-center hover:bg-muted transition-colors">
+          <Icon name="Bell" size={18} className="text-foreground" />
+        </button>
+      </header>
+
+      <main className="max-w-2xl mx-auto px-5">
+        {tab === 'day' && <DayView activeDay={activeDay} setActiveDay={setActiveDay} notify={notify} />}
+        {tab === 'goals' && <GoalsView notify={notify} />}
+        {tab === 'profile' && <ProfileView notify={notify} />}
+      </main>
+
+      <nav className="fixed bottom-0 inset-x-0 z-40">
+        <div className="max-w-2xl mx-auto px-5 pb-5">
+          <div className="bg-card/80 backdrop-blur-xl border border-border rounded-[1.75rem] shadow-lg shadow-black/5 flex items-center justify-around p-2">
+            {[
+              { id: 'day', icon: 'CircleGauge', label: 'День' },
+              { id: 'goals', icon: 'Target', label: 'Цели' },
+              { id: 'profile', icon: 'User', label: 'Профиль' },
+            ].map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id as typeof tab)}
+                className={`flex flex-col items-center gap-1 px-6 py-2.5 rounded-2xl transition-all ${
+                  tab === t.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Icon name={t.icon} size={20} />
+                <span className="text-[11px] font-medium">{t.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </nav>
     </div>
   );
 };
+
+const DayView = ({
+  activeDay,
+  setActiveDay,
+  notify,
+}: {
+  activeDay: number;
+  setActiveDay: (n: number) => void;
+  notify: () => void;
+}) => (
+  <div className="space-y-6 animate-fade-in">
+    <div className="flex gap-1.5 justify-between">
+      {days.map((d, i) => (
+        <button
+          key={d}
+          onClick={() => setActiveDay(i)}
+          className={`flex-1 flex flex-col items-center gap-1.5 py-2.5 rounded-2xl transition-all ${
+            activeDay === i ? 'bg-primary text-primary-foreground' : 'bg-card border border-border text-muted-foreground'
+          }`}
+        >
+          <span className="text-[11px] font-medium">{d}</span>
+          <span className="text-base font-display font-bold">{17 + i}</span>
+        </button>
+      ))}
+    </div>
+
+    <section className="bg-card border border-border rounded-[1.75rem] p-7 flex flex-col items-center">
+      <ProgressRing value={eaten.cal} max={goals.cal} color="hsl(var(--cal))" label="Калории" />
+      <div className="w-full grid grid-cols-2 gap-x-8 gap-y-5 mt-8">
+        <MacroBar label="Белки" value={eaten.protein} max={goals.protein} color="hsl(var(--protein))" />
+        <MacroBar label="Жиры" value={eaten.fat} max={goals.fat} color="hsl(var(--fat))" />
+        <MacroBar label="Углеводы" value={eaten.carb} max={goals.carb} color="hsl(var(--carb))" />
+        <MacroBar label="Клетчатка" value={eaten.fiber} max={goals.fiber} color="hsl(var(--fiber))" />
+      </div>
+    </section>
+
+    <button
+      onClick={notify}
+      className="w-full group relative overflow-hidden rounded-[1.75rem] bg-primary text-primary-foreground p-6 flex items-center gap-4 hover:opacity-95 transition-opacity"
+    >
+      <div className="w-14 h-14 rounded-2xl bg-primary-foreground/15 flex items-center justify-center shrink-0">
+        <Icon name="Camera" size={26} />
+      </div>
+      <div className="text-left">
+        <p className="font-display text-lg font-bold">Сфотографировать еду</p>
+        <p className="text-sm opacity-80">ИИ определит блюдо, вес и КБЖУ</p>
+      </div>
+      <Icon name="ArrowRight" size={22} className="ml-auto group-hover:translate-x-1 transition-transform" />
+    </button>
+
+    <section className="space-y-3">
+      <div className="flex items-center justify-between px-1">
+        <h2 className="font-display text-lg font-bold">Приёмы пищи</h2>
+        <span className="text-sm text-muted-foreground">{meals.length} записи</span>
+      </div>
+      {meals.map((m, i) => (
+        <div key={i} className="bg-card border border-border rounded-[1.5rem] p-3 flex items-center gap-4">
+          <img src={m.img} alt={m.name} className="w-16 h-16 rounded-2xl object-cover" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="font-semibold truncate">{m.name}</p>
+              <span className="text-xs text-muted-foreground">{m.time}</span>
+            </div>
+            <div className="flex gap-3 mt-1.5 text-xs text-muted-foreground">
+              <span className="text-macroProtein font-medium">Б {m.protein}</span>
+              <span className="text-macroFat font-medium">Ж {m.fat}</span>
+              <span className="text-macroCarb font-medium">У {m.carb}</span>
+              <span className="text-macroFiber font-medium">Кл {m.fiber}</span>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="font-display font-bold text-cal">{m.cal}</p>
+            <p className="text-[11px] text-muted-foreground">ккал</p>
+          </div>
+        </div>
+      ))}
+    </section>
+  </div>
+);
+
+const GoalsView = ({ notify }: { notify: () => void }) => {
+  const [cal, setCal] = useState([2100]);
+  const [protein, setProtein] = useState([140]);
+  const [fiber, setFiber] = useState([30]);
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="px-1">
+        <h1 className="font-display text-3xl font-extrabold">Цели</h1>
+        <p className="text-muted-foreground mt-1">Дневные нормы по нутриентам</p>
+      </div>
+
+      <section className="bg-card border border-border rounded-[1.75rem] p-7 space-y-8">
+        <GoalSlider label="Калории" value={cal} onChange={setCal} min={1200} max={4000} step={50} unit="ккал" color="hsl(var(--cal))" />
+        <GoalSlider label="Белки" value={protein} onChange={setProtein} min={50} max={300} step={5} unit="г" color="hsl(var(--protein))" />
+        <GoalSlider label="Клетчатка" value={fiber} onChange={setFiber} min={10} max={60} step={1} unit="г" color="hsl(var(--fiber))" />
+      </section>
+
+      <section className="bg-card border border-border rounded-[1.75rem] p-6 space-y-1">
+        <h2 className="font-display text-lg font-bold mb-2">Готовые планы</h2>
+        {['Поддержание веса', 'Снижение веса', 'Набор массы'].map((p, i) => (
+          <button
+            key={p}
+            onClick={notify}
+            className="w-full flex items-center justify-between py-3.5 border-b border-border last:border-0 group"
+          >
+            <span className="font-medium group-hover:text-primary transition-colors">{p}</span>
+            <Icon name="ChevronRight" size={18} className="text-muted-foreground" />
+          </button>
+        ))}
+      </section>
+
+      <Button onClick={notify} className="w-full h-14 rounded-2xl text-base font-semibold">
+        Сохранить цели
+      </Button>
+    </div>
+  );
+};
+
+const GoalSlider = ({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  step,
+  unit,
+  color,
+}: {
+  label: string;
+  value: number[];
+  onChange: (v: number[]) => void;
+  min: number;
+  max: number;
+  step: number;
+  unit: string;
+  color: string;
+}) => (
+  <div className="space-y-3">
+    <div className="flex items-baseline justify-between">
+      <span className="font-medium">{label}</span>
+      <span className="font-display text-xl font-bold" style={{ color }}>
+        {value[0]} <span className="text-sm text-muted-foreground font-sans font-normal">{unit}</span>
+      </span>
+    </div>
+    <Slider value={value} onValueChange={onChange} min={min} max={max} step={step} />
+  </div>
+);
+
+const ProfileView = ({ notify }: { notify: () => void }) => {
+  const [reminders, setReminders] = useState({ meals: true, goals: true, water: false });
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <section className="bg-card border border-border rounded-[1.75rem] p-7 flex items-center gap-5">
+        <div className="w-20 h-20 rounded-3xl bg-accent flex items-center justify-center">
+          <Icon name="User" size={36} className="text-accent-foreground" />
+        </div>
+        <div>
+          <h1 className="font-display text-2xl font-extrabold">Анна</h1>
+          <p className="text-muted-foreground">28 лет · 64 кг · 168 см</p>
+        </div>
+      </section>
+
+      <section className="bg-card border border-border rounded-[1.75rem] p-6 space-y-5">
+        <h2 className="font-display text-lg font-bold">Личные данные</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Вес, кг" value="64" />
+          <Field label="Рост, см" value="168" />
+          <Field label="Возраст" value="28" />
+          <Field label="Цель веса, кг" value="60" />
+        </div>
+      </section>
+
+      <section className="bg-card border border-border rounded-[1.75rem] p-6 space-y-1">
+        <h2 className="font-display text-lg font-bold mb-3">Напоминания</h2>
+        {[
+          { key: 'meals', icon: 'Utensils', title: 'Приёмы пищи', sub: 'Завтрак, обед, ужин' },
+          { key: 'goals', icon: 'Target', title: 'Достижение целей', sub: 'Когда норма выполнена' },
+          { key: 'water', icon: 'Droplet', title: 'Питьевой режим', sub: 'Каждые 2 часа' },
+        ].map((r) => (
+          <div key={r.key} className="flex items-center gap-4 py-3 border-b border-border last:border-0">
+            <div className="w-11 h-11 rounded-2xl bg-muted flex items-center justify-center shrink-0">
+              <Icon name={r.icon} size={20} className="text-foreground" />
+            </div>
+            <div className="flex-1">
+              <p className="font-medium">{r.title}</p>
+              <p className="text-sm text-muted-foreground">{r.sub}</p>
+            </div>
+            <Switch
+              checked={reminders[r.key as keyof typeof reminders]}
+              onCheckedChange={(v) => setReminders((s) => ({ ...s, [r.key]: v }))}
+            />
+          </div>
+        ))}
+      </section>
+
+      <Button onClick={notify} variant="outline" className="w-full h-14 rounded-2xl text-base font-semibold">
+        <Icon name="Settings" size={18} className="mr-2" />
+        Настройки
+      </Button>
+    </div>
+  );
+};
+
+const Field = ({ label, value }: { label: string; value: string }) => (
+  <div className="space-y-1.5">
+    <Label className="text-muted-foreground text-sm">{label}</Label>
+    <Input defaultValue={value} className="h-12 rounded-xl bg-background" />
+  </div>
+);
 
 export default Index;

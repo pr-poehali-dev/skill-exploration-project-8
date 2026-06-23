@@ -68,6 +68,17 @@ export default {
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
 			},
+			fontFamily: {
+				display: ['Manrope', 'sans-serif'],
+				sans: ['Golos Text', 'sans-serif'],
+			},
+			colors: {
+				cal: 'hsl(var(--cal))',
+				macroProtein: 'hsl(var(--protein))',
+				macroFat: 'hsl(var(--fat))',
+				macroCarb: 'hsl(var(--carb))',
+				macroFiber: 'hsl(var(--fiber))',
+			},
 			keyframes: {
 				'accordion-down': {
 					from: {
