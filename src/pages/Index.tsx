@@ -36,22 +36,52 @@ function calcNutrition(currentWeight: number, targetWeight: number) {
 const FOOD_IMG =
   'https://cdn.poehali.dev/projects/e6e9bd5f-1d4b-4442-bfac-18c3d0c53b14/files/31646f36-1cec-4eba-8747-044a81070fc8.jpg';
 
-const meals = [
-  { name: 'Боул с лососем', time: '08:30', img: FOOD_IMG, cal: 520, protein: 38, fat: 24, carb: 41, fiber: 9 },
-  { name: 'Греческий салат', time: '13:15', img: FOOD_IMG, cal: 310, protein: 12, fat: 22, carb: 18, fiber: 6 },
-  { name: 'Овсянка с ягодами', time: '17:40', img: FOOD_IMG, cal: 280, protein: 9, fat: 6, carb: 48, fiber: 7 },
-];
+interface Meal {
+  name: string;
+  time: string;
+  img: string;
+  cal: number;
+  protein: number;
+  fat: number;
+  carb: number;
+  fiber: number;
+}
 
-const eaten = meals.reduce(
-  (a, m) => ({
-    cal: a.cal + m.cal,
-    protein: a.protein + m.protein,
-    fat: a.fat + m.fat,
-    carb: a.carb + m.carb,
-    fiber: a.fiber + m.fiber,
-  }),
-  { cal: 0, protein: 0, fat: 0, carb: 0, fiber: 0 }
-);
+// Приёмы пищи по дням недели (0=Пн … 6=Вс)
+const MEALS_BY_DAY: Record<number, Meal[]> = {
+  0: [
+    { name: 'Боул с лососем', time: '08:30', img: FOOD_IMG, cal: 520, protein: 38, fat: 24, carb: 41, fiber: 9 },
+    { name: 'Греческий салат', time: '13:15', img: FOOD_IMG, cal: 310, protein: 12, fat: 22, carb: 18, fiber: 6 },
+  ],
+  1: [
+    { name: 'Овсянка с ягодами', time: '08:00', img: FOOD_IMG, cal: 280, protein: 9, fat: 6, carb: 48, fiber: 7 },
+    { name: 'Куриная грудка с рисом', time: '14:00', img: FOOD_IMG, cal: 450, protein: 42, fat: 10, carb: 50, fiber: 4 },
+  ],
+  2: [
+    { name: 'Боул с лососем', time: '08:30', img: FOOD_IMG, cal: 520, protein: 38, fat: 24, carb: 41, fiber: 9 },
+    { name: 'Греческий салат', time: '13:15', img: FOOD_IMG, cal: 310, protein: 12, fat: 22, carb: 18, fiber: 6 },
+    { name: 'Овсянка с ягодами', time: '17:40', img: FOOD_IMG, cal: 280, protein: 9, fat: 6, carb: 48, fiber: 7 },
+  ],
+  3: [
+    { name: 'Омлет с овощами', time: '09:00', img: FOOD_IMG, cal: 340, protein: 22, fat: 24, carb: 8, fiber: 3 },
+  ],
+  4: [],
+  5: [],
+  6: [],
+};
+
+function sumMeals(list: Meal[]) {
+  return list.reduce(
+    (a, m) => ({
+      cal: a.cal + m.cal,
+      protein: a.protein + m.protein,
+      fat: a.fat + m.fat,
+      carb: a.carb + m.carb,
+      fiber: a.fiber + m.fiber,
+    }),
+    { cal: 0, protein: 0, fat: 0, carb: 0, fiber: 0 }
+  );
+}
 
 const DAYS_SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
@@ -142,7 +172,10 @@ const DayView = ({
   goals: ReturnType<typeof calcNutrition>;
   week: number[];
   todayIdx: number;
-}) => (
+}) => {
+  const meals = MEALS_BY_DAY[activeDay] ?? [];
+  const eaten = sumMeals(meals);
+  return (
   <div className="space-y-6 animate-fade-in">
     <div className="flex gap-1.5 justify-between">
       {DAYS_SHORT.map((d, i) => (
@@ -215,7 +248,8 @@ const DayView = ({
       ))}
     </section>
   </div>
-);
+  );
+};
 
 const GoalsView = ({
   notify: _notify,
