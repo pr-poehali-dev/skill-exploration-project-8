@@ -36,8 +36,6 @@ function calcNutrition(currentWeight: number, targetWeight: number) {
 const FOOD_IMG =
   'https://cdn.poehali.dev/projects/e6e9bd5f-1d4b-4442-bfac-18c3d0c53b14/files/31646f36-1cec-4eba-8747-044a81070fc8.jpg';
 
-const goals = { cal: 2100, protein: 140, fat: 70, carb: 230, fiber: 30 };
-
 const meals = [
   { name: 'Боул с лососем', time: '08:30', img: FOOD_IMG, cal: 520, protein: 38, fat: 24, carb: 41, fiber: 9 },
   { name: 'Греческий салат', time: '13:15', img: FOOD_IMG, cal: 310, protein: 12, fat: 22, carb: 18, fiber: 6 },
@@ -60,6 +58,9 @@ const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const Index = () => {
   const [tab, setTab] = useState<'day' | 'goals' | 'profile'>('day');
   const [activeDay, setActiveDay] = useState(2);
+  const [weightGoals, setWeightGoals] = useState<WeightGoals>(loadWeightGoals);
+
+  const nutrition = calcNutrition(weightGoals.currentWeight, weightGoals.targetWeight);
 
   const notify = () => toast('Функция в разработке', { description: 'Напишите, что должно происходить — настрою.' });
 
@@ -78,8 +79,8 @@ const Index = () => {
       </header>
 
       <main className="max-w-2xl mx-auto px-5">
-        {tab === 'day' && <DayView activeDay={activeDay} setActiveDay={setActiveDay} notify={notify} />}
-        {tab === 'goals' && <GoalsView notify={notify} />}
+        {tab === 'day' && <DayView activeDay={activeDay} setActiveDay={setActiveDay} notify={notify} goals={nutrition} />}
+        {tab === 'goals' && <GoalsView notify={notify} weightGoals={weightGoals} onSave={setWeightGoals} />}
         {tab === 'profile' && <ProfileView notify={notify} />}
       </main>
 
@@ -113,10 +114,12 @@ const DayView = ({
   activeDay,
   setActiveDay,
   notify,
+  goals,
 }: {
   activeDay: number;
   setActiveDay: (n: number) => void;
   notify: () => void;
+  goals: ReturnType<typeof calcNutrition>;
 }) => (
   <div className="space-y-6 animate-fade-in">
     <div className="flex gap-1.5 justify-between">
@@ -188,24 +191,31 @@ const DayView = ({
   </div>
 );
 
-const GoalsView = ({ notify: _notify }: { notify: () => void }) => {
-  const [data, setData] = useState<WeightGoals>(loadWeightGoals);
-  const [draft, setDraft] = useState<WeightGoals>(loadWeightGoals);
+const GoalsView = ({
+  notify: _notify,
+  weightGoals,
+  onSave,
+}: {
+  notify: () => void;
+  weightGoals: WeightGoals;
+  onSave: (g: WeightGoals) => void;
+}) => {
+  const [draft, setDraft] = useState<WeightGoals>({ ...weightGoals });
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    setDraft({ ...data });
-  }, [data]);
+    setDraft({ ...weightGoals });
+  }, [weightGoals]);
 
-  const nutrition = calcNutrition(data.currentWeight, data.targetWeight);
+  const nutrition = calcNutrition(draft.currentWeight, draft.targetWeight);
 
-  const totalToLose = Math.max(data.startWeight - data.targetWeight, 0.01);
-  const alreadyLost = Math.max(data.startWeight - data.currentWeight, 0);
-  const remaining = Math.max(data.currentWeight - data.targetWeight, 0);
+  const totalToLose = Math.max(draft.startWeight - draft.targetWeight, 0.01);
+  const alreadyLost = Math.max(draft.startWeight - draft.currentWeight, 0);
+  const remaining = Math.max(draft.currentWeight - draft.targetWeight, 0);
   const progressPct = Math.min(Math.round((alreadyLost / totalToLose) * 100), 100);
 
   const handleSave = () => {
-    setData({ ...draft });
+    onSave({ ...draft });
     localStorage.setItem(LS_KEY, JSON.stringify(draft));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -243,8 +253,8 @@ const GoalsView = ({ notify: _notify }: { notify: () => void }) => {
         </div>
         <div className="space-y-1.5">
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>{data.startWeight} кг</span>
-            <span>{data.targetWeight} кг</span>
+            <span>{draft.startWeight} кг</span>
+            <span>{draft.targetWeight} кг</span>
           </div>
           <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
             <div
@@ -259,7 +269,7 @@ const GoalsView = ({ notify: _notify }: { notify: () => void }) => {
       <section className="bg-card border border-border rounded-[1.75rem] p-6 space-y-5">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg font-bold">Суточные нормы</h2>
-          <span className="text-sm text-muted-foreground">для {data.currentWeight} кг</span>
+          <span className="text-sm text-muted-foreground">для {draft.currentWeight} кг</span>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <NormCard label="Калории" value={nutrition.cal} unit="ккал" color="hsl(var(--cal))" />
