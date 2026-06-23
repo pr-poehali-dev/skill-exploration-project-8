@@ -24,11 +24,11 @@ function loadWeightGoals(): WeightGoals {
   return { startWeight: 116, targetWeight: 95, currentWeight: 115.5 };
 }
 
-function calcNutrition(w: number) {
-  const cal = Math.round(w * 25);
-  const protein = Math.round(w * 2);
-  const fat = Math.round(w * 0.7);
-  const fiber = Math.round((w / 1000) * 14 * 10) / 10;
+function calcNutrition(currentWeight: number, targetWeight: number) {
+  const cal = Math.round(currentWeight * 25);
+  const protein = Math.round(targetWeight * 2);
+  const fat = Math.round(currentWeight * 0.7 * 100) / 100;
+  const fiber = Math.round((cal / 1000) * 14 * 10) / 10;
   const carb = Math.round((cal - (protein * 4 + fat * 9)) / 4);
   return { cal, protein, fat, carb, fiber };
 }
@@ -197,7 +197,7 @@ const GoalsView = ({ notify: _notify }: { notify: () => void }) => {
     setDraft({ ...data });
   }, [data]);
 
-  const nutrition = calcNutrition(data.currentWeight);
+  const nutrition = calcNutrition(data.currentWeight, data.targetWeight);
 
   const totalToLose = Math.max(data.startWeight - data.targetWeight, 0.01);
   const alreadyLost = Math.max(data.startWeight - data.currentWeight, 0);
