@@ -8,11 +8,12 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import ProgressRing from '@/components/nutrition/ProgressRing';
 import MacroBar from '@/components/nutrition/MacroBar';
 import { toast } from 'sonner';
+import { useTranslation, Lang } from '@/lib/i18n';
 
 const LS_KEY = 'eatwise_weight_goals';
 const LS_SETTINGS = 'eatwise_settings';
 
-const LANGUAGES = [
+const LANGUAGES: { code: Lang; label: string; flag: string }[] = [
   { code: 'ru', label: 'Русский', flag: '🇷🇺' },
   { code: 'en', label: 'English', flag: '🇬🇧' },
   { code: 'es', label: 'Español', flag: '🇪🇸' },
@@ -22,14 +23,15 @@ const LANGUAGES = [
   { code: 'tr', label: 'Türkçe', flag: '🇹🇷' },
 ];
 
+type Theme = 'light' | 'dark' | 'navy';
+
 interface AppSettings {
   units: 'metric' | 'imperial';
   energy: 'kcal' | 'kj';
-  theme: 'light' | 'dark';
-  lang: string;
+  theme: Theme;
 }
 
-const DEFAULT_SETTINGS: AppSettings = { units: 'metric', energy: 'kcal', theme: 'light', lang: 'ru' };
+const DEFAULT_SETTINGS: AppSettings = { units: 'metric', energy: 'kcal', theme: 'light' };
 
 function loadSettings(): AppSettings {
   try {
@@ -127,14 +129,23 @@ function getMoscowWeek() {
 }
 
 const Index = () => {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<'day' | 'example' | 'goals' | 'profile'>('day');
   const { week, todayIdx } = getMoscowWeek();
   const [activeDay, setActiveDay] = useState(todayIdx);
   const [weightGoals, setWeightGoals] = useState<WeightGoals>(loadWeightGoals);
 
+  useEffect(() => {
+    const { theme } = loadSettings();
+    const root = document.documentElement;
+    root.classList.remove('dark', 'navy');
+    if (theme === 'dark') root.classList.add('dark');
+    if (theme === 'navy') root.classList.add('navy');
+  }, []);
+
   const nutrition = calcNutrition(weightGoals.currentWeight, weightGoals.targetWeight);
 
-  const notify = () => toast('Функция в разработке', { description: 'Напишите, что должно происходить — настрою.' });
+  const notify = () => toast(t('photoTitle'), { description: t('photoSub') });
 
   return (
     <div className="min-h-screen bg-background pb-28">
@@ -161,20 +172,20 @@ const Index = () => {
         <div className="max-w-2xl mx-auto px-5 pb-5">
           <div className="bg-card/80 backdrop-blur-xl border border-border rounded-[1.75rem] shadow-lg shadow-black/5 flex items-center justify-around p-2">
             {[
-              { id: 'day', icon: 'CircleGauge', label: 'День' },
-              { id: 'example', icon: 'Sparkles', label: 'Пример' },
-              { id: 'goals', icon: 'Target', label: 'Цели' },
-              { id: 'profile', icon: 'User', label: 'Профиль' },
-            ].map((t) => (
+              { id: 'day', icon: 'CircleGauge', label: t('tab_day') },
+              { id: 'example', icon: 'Sparkles', label: t('tab_example') },
+              { id: 'goals', icon: 'Target', label: t('tab_goals') },
+              { id: 'profile', icon: 'User', label: t('tab_profile') },
+            ].map((item) => (
               <button
-                key={t.id}
-                onClick={() => setTab(t.id as typeof tab)}
+                key={item.id}
+                onClick={() => setTab(item.id as typeof tab)}
                 className={`flex flex-col items-center gap-1 px-4 py-2.5 rounded-2xl transition-all ${
-                  tab === t.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                  tab === item.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Icon name={t.icon} size={20} />
-                <span className="text-[11px] font-medium">{t.label}</span>
+                <Icon name={item.icon} size={20} />
+                <span className="text-[11px] font-medium">{item.label}</span>
               </button>
             ))}
           </div>
@@ -199,6 +210,7 @@ const DayView = ({
   week: number[];
   todayIdx: number;
 }) => {
+  const { t } = useTranslation();
   const meals = MEALS_BY_DAY[activeDay] ?? [];
   const eaten = sumMeals(meals);
   return (
@@ -223,12 +235,12 @@ const DayView = ({
     </div>
 
     <section className="bg-card border border-border rounded-[1.75rem] p-7 flex flex-col items-center">
-      <ProgressRing value={eaten.cal} max={goals.cal} color="hsl(var(--cal))" label="Калории" />
+      <ProgressRing value={eaten.cal} max={goals.cal} color="hsl(var(--cal))" label={t('calories')} unit={t('kcal')} ofText={t('of')} leftText={t('left')} />
       <div className="w-full grid grid-cols-2 gap-x-8 gap-y-5 mt-8">
-        <MacroBar label="Белки" value={eaten.protein} max={goals.protein} color="hsl(var(--protein))" />
-        <MacroBar label="Жиры" value={eaten.fat} max={goals.fat} color="hsl(var(--fat))" />
-        <MacroBar label="Углеводы" value={eaten.carb} max={goals.carb} color="hsl(var(--carb))" />
-        <MacroBar label="Клетчатка" value={eaten.fiber} max={goals.fiber} color="hsl(var(--fiber))" />
+        <MacroBar label={t('protein')} value={eaten.protein} max={goals.protein} color="hsl(var(--protein))" unit={t('g')} />
+        <MacroBar label={t('fat')} value={eaten.fat} max={goals.fat} color="hsl(var(--fat))" unit={t('g')} />
+        <MacroBar label={t('carbs')} value={eaten.carb} max={goals.carb} color="hsl(var(--carb))" unit={t('g')} />
+        <MacroBar label={t('fiber')} value={eaten.fiber} max={goals.fiber} color="hsl(var(--fiber))" unit={t('g')} />
       </div>
     </section>
 
@@ -240,17 +252,22 @@ const DayView = ({
         <Icon name="Camera" size={26} />
       </div>
       <div className="text-left">
-        <p className="font-display text-lg font-bold">Сфотографировать еду</p>
-        <p className="text-sm opacity-80">ИИ определит блюдо, вес и КБЖУ</p>
+        <p className="font-display text-lg font-bold">{t('photoTitle')}</p>
+        <p className="text-sm opacity-80">{t('photoSub')}</p>
       </div>
       <Icon name="ArrowRight" size={22} className="ml-auto group-hover:translate-x-1 transition-transform" />
     </button>
 
     <section className="space-y-3">
       <div className="flex items-center justify-between px-1">
-        <h2 className="font-display text-lg font-bold">Приёмы пищи</h2>
-        <span className="text-sm text-muted-foreground">{meals.length} записи</span>
+        <h2 className="font-display text-lg font-bold">{t('meals')}</h2>
       </div>
+      {meals.length === 0 && (
+        <div className="bg-card border border-dashed border-border rounded-[1.5rem] p-8 text-center text-muted-foreground">
+          <Icon name="UtensilsCrossed" size={28} className="mx-auto mb-2 opacity-50" />
+          <p>{t('noMeals')}</p>
+        </div>
+      )}
       {meals.map((m, i) => (
         <div key={i} className="bg-card border border-border rounded-[1.5rem] p-3 flex items-center gap-4">
           <img src={m.img} alt={m.name} className="w-16 h-16 rounded-2xl object-cover" />
@@ -268,7 +285,7 @@ const DayView = ({
           </div>
           <div className="text-right">
             <p className="font-display font-bold text-cal">{m.cal}</p>
-            <p className="text-[11px] text-muted-foreground">ккал</p>
+            <p className="text-[11px] text-muted-foreground">{t('kcal')}</p>
           </div>
         </div>
       ))}
@@ -284,27 +301,28 @@ const ExampleView = ({
   goals: ReturnType<typeof calcNutrition>;
   onStart: () => void;
 }) => {
+  const { t } = useTranslation();
   const eaten = sumMeals(EXAMPLE_MEALS);
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="rounded-[1.75rem] bg-primary text-primary-foreground p-6">
         <div className="flex items-center gap-2 text-sm opacity-90 mb-2">
           <Icon name="Sparkles" size={16} />
-          <span>Как это работает</span>
+          <span>{t('howItWorks')}</span>
         </div>
         <h1 className="font-display text-2xl font-extrabold leading-tight">
-          Фотографируй еду — приложение само посчитает КБЖУ
+          {t('exampleHeadline')}
         </h1>
         <p className="text-sm opacity-85 mt-2">
-          Вот пример заполненного дня. Твой экран будет выглядеть так же.
+          {t('exampleSub')}
         </p>
       </div>
 
       <div className="space-y-3">
         {[
-          { icon: 'Camera', title: '1. Сфотографируй блюдо', sub: 'Наведи камеру на тарелку' },
-          { icon: 'Brain', title: '2. ИИ определит еду и вес', sub: 'Распознаёт блюдо и граммовку' },
-          { icon: 'ChartPie', title: '3. КБЖУ добавится в день', sub: 'Калории, белки, жиры, углеводы, клетчатка' },
+          { icon: 'Camera', title: t('step1'), sub: t('step1s') },
+          { icon: 'Brain', title: t('step2'), sub: t('step2s') },
+          { icon: 'ChartPie', title: t('step3'), sub: t('step3s') },
         ].map((s) => (
           <div key={s.title} className="bg-card border border-border rounded-2xl p-4 flex items-center gap-4">
             <div className="w-11 h-11 rounded-2xl bg-accent flex items-center justify-center shrink-0">
@@ -320,21 +338,21 @@ const ExampleView = ({
 
       <div className="relative">
         <span className="absolute -top-3 left-5 z-10 bg-macroFiber text-white text-xs font-medium px-3 py-1 rounded-full">
-          Пример дня
+          {t('exampleDay')}
         </span>
         <section className="bg-card border border-border rounded-[1.75rem] p-7 flex flex-col items-center">
-          <ProgressRing value={eaten.cal} max={goals.cal} color="hsl(var(--cal))" label="Калории" />
+          <ProgressRing value={eaten.cal} max={goals.cal} color="hsl(var(--cal))" label={t('calories')} unit={t('kcal')} ofText={t('of')} leftText={t('left')} />
           <div className="w-full grid grid-cols-2 gap-x-8 gap-y-5 mt-8">
-            <MacroBar label="Белки" value={eaten.protein} max={goals.protein} color="hsl(var(--protein))" />
-            <MacroBar label="Жиры" value={eaten.fat} max={goals.fat} color="hsl(var(--fat))" />
-            <MacroBar label="Углеводы" value={eaten.carb} max={goals.carb} color="hsl(var(--carb))" />
-            <MacroBar label="Клетчатка" value={eaten.fiber} max={goals.fiber} color="hsl(var(--fiber))" />
+            <MacroBar label={t('protein')} value={eaten.protein} max={goals.protein} color="hsl(var(--protein))" unit={t('g')} />
+            <MacroBar label={t('fat')} value={eaten.fat} max={goals.fat} color="hsl(var(--fat))" unit={t('g')} />
+            <MacroBar label={t('carbs')} value={eaten.carb} max={goals.carb} color="hsl(var(--carb))" unit={t('g')} />
+            <MacroBar label={t('fiber')} value={eaten.fiber} max={goals.fiber} color="hsl(var(--fiber))" unit={t('g')} />
           </div>
         </section>
       </div>
 
       <section className="space-y-3">
-        <h2 className="font-display text-lg font-bold px-1">Приёмы пищи в примере</h2>
+        <h2 className="font-display text-lg font-bold px-1">{t('mealsExample')}</h2>
         {EXAMPLE_MEALS.map((m, i) => (
           <div key={i} className="bg-card border border-border rounded-[1.5rem] p-3 flex items-center gap-4">
             <img src={m.img} alt={m.name} className="w-16 h-16 rounded-2xl object-cover" />
@@ -352,7 +370,7 @@ const ExampleView = ({
             </div>
             <div className="text-right">
               <p className="font-display font-bold text-cal">{m.cal}</p>
-              <p className="text-[11px] text-muted-foreground">ккал</p>
+              <p className="text-[11px] text-muted-foreground">{t('kcal')}</p>
             </div>
           </div>
         ))}
@@ -360,7 +378,7 @@ const ExampleView = ({
 
       <Button onClick={onStart} className="w-full h-14 rounded-2xl text-base font-semibold">
         <Icon name="Rocket" size={18} className="mr-2" />
-        Начать вести свой день
+        {t('startDay')}
       </Button>
     </div>
   );
@@ -375,6 +393,7 @@ const GoalsView = ({
   weightGoals: WeightGoals;
   onSave: (g: WeightGoals) => void;
 }) => {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState<WeightGoals>({ ...weightGoals });
   const [saved, setSaved] = useState(false);
 
@@ -404,32 +423,32 @@ const GoalsView = ({
   return (
     <div className="space-y-5 animate-fade-in">
       <div className="px-1">
-        <h1 className="font-display text-3xl font-extrabold">Цели</h1>
-        <p className="text-muted-foreground mt-1">Введите данные — нормы пересчитаются автоматически</p>
+        <h1 className="font-display text-3xl font-extrabold">{t('goals')}</h1>
+        <p className="text-muted-foreground mt-1">{t('goalsSub')}</p>
       </div>
 
       {/* Весовые данные */}
       <section className="bg-card border border-border rounded-[1.75rem] p-6 space-y-4">
-        <h2 className="font-display text-lg font-bold">Данные по весу</h2>
+        <h2 className="font-display text-lg font-bold">{t('weightData')}</h2>
         <div className="grid grid-cols-3 gap-3">
-          <WeightField label="Начальный" unit="кг" value={draft.startWeight} onChange={(v) => handleChange('startWeight', v)} />
-          <WeightField label="Целевой" unit="кг" value={draft.targetWeight} onChange={(v) => handleChange('targetWeight', v)} />
-          <WeightField label="Текущий" unit="кг" value={draft.currentWeight} onChange={(v) => handleChange('currentWeight', v)} highlight />
+          <WeightField label={t('startWeight')} unit={t('kg')} value={draft.startWeight} onChange={(v) => handleChange('startWeight', v)} />
+          <WeightField label={t('targetWeight')} unit={t('kg')} value={draft.targetWeight} onChange={(v) => handleChange('targetWeight', v)} />
+          <WeightField label={t('currentWeight')} unit={t('kg')} value={draft.currentWeight} onChange={(v) => handleChange('currentWeight', v)} highlight />
         </div>
       </section>
 
       {/* Прогресс снижения */}
       <section className="bg-card border border-border rounded-[1.75rem] p-6">
-        <h2 className="font-display text-lg font-bold mb-4">Прогресс похудения</h2>
+        <h2 className="font-display text-lg font-bold mb-4">{t('weightProgress')}</h2>
         <div className="grid grid-cols-3 gap-3 mb-5">
-          <StatChip label="Сброшено" value={`${alreadyLost.toFixed(1)} кг`} color="text-macroProtein" />
-          <StatChip label="Осталось" value={`${remaining.toFixed(1)} кг`} color="text-cal" />
-          <StatChip label="Выполнено" value={`${progressPct}%`} color="text-primary" />
+          <StatChip label={t('lost')} value={`${alreadyLost.toFixed(1)} ${t('kg')}`} color="text-macroProtein" />
+          <StatChip label={t('remaining')} value={`${remaining.toFixed(1)} ${t('kg')}`} color="text-cal" />
+          <StatChip label={t('done')} value={`${progressPct}%`} color="text-primary" />
         </div>
         <div className="space-y-1.5">
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>{draft.startWeight} кг</span>
-            <span>{draft.targetWeight} кг</span>
+            <span>{draft.startWeight} {t('kg')}</span>
+            <span>{draft.targetWeight} {t('kg')}</span>
           </div>
           <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
             <div
@@ -443,24 +462,24 @@ const GoalsView = ({
       {/* Расчётные нормы КБЖУ */}
       <section className="bg-card border border-border rounded-[1.75rem] p-6 space-y-5">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-lg font-bold">Суточные нормы</h2>
-          <span className="text-sm text-muted-foreground">для {draft.currentWeight} кг</span>
+          <h2 className="font-display text-lg font-bold">{t('dailyNorms')}</h2>
+          <span className="text-sm text-muted-foreground">{t('forWeight')} {draft.currentWeight} {t('kg')}</span>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <NormCard label="Калории" value={nutrition.cal} unit="ккал" color="hsl(var(--cal))" />
-          <NormCard label="Белки" value={nutrition.protein} unit="г" color="hsl(var(--protein))" />
-          <NormCard label="Жиры" value={nutrition.fat} unit="г" color="hsl(var(--fat))" />
-          <NormCard label="Углеводы" value={nutrition.carb} unit="г" color="hsl(var(--carb))" />
+          <NormCard label={t('calories')} value={nutrition.cal} unit={t('kcal')} color="hsl(var(--cal))" />
+          <NormCard label={t('protein')} value={nutrition.protein} unit={t('g')} color="hsl(var(--protein))" />
+          <NormCard label={t('fat')} value={nutrition.fat} unit={t('g')} color="hsl(var(--fat))" />
+          <NormCard label={t('carbs')} value={nutrition.carb} unit={t('g')} color="hsl(var(--carb))" />
         </div>
         <div className="bg-muted rounded-2xl p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'hsl(var(--fiber) / 0.15)' }}>
               <Icon name="Leaf" size={18} style={{ color: 'hsl(var(--fiber))' }} />
             </div>
-            <span className="font-medium">Клетчатка</span>
+            <span className="font-medium">{t('fiber')}</span>
           </div>
           <span className="font-display text-2xl font-bold" style={{ color: 'hsl(var(--fiber))' }}>
-            {nutrition.fiber} <span className="text-sm text-muted-foreground font-sans font-normal">г</span>
+            {nutrition.fiber} <span className="text-sm text-muted-foreground font-sans font-normal">{t('g')}</span>
           </span>
         </div>
       </section>
@@ -470,9 +489,9 @@ const GoalsView = ({
         className="w-full h-14 rounded-2xl text-base font-semibold"
       >
         {saved ? (
-          <><Icon name="Check" size={18} className="mr-2" />Сохранено</>
+          <><Icon name="Check" size={18} className="mr-2" />{t('saved')}</>
         ) : (
-          'Сохранить данные'
+          t('saveData')
         )}
       </Button>
     </div>
@@ -516,7 +535,8 @@ const NormCard = ({ label, value, unit, color }: { label: string; value: number;
   </div>
 );
 
-const ProfileView = ({ notify }: { notify: () => void }) => {
+const ProfileView = ({ notify: _notify }: { notify: () => void }) => {
+  const { t } = useTranslation();
   const [reminders, setReminders] = useState({ meals: true, goals: true, water: false });
 
   return (
@@ -532,21 +552,21 @@ const ProfileView = ({ notify }: { notify: () => void }) => {
       </section>
 
       <section className="bg-card border border-border rounded-[1.75rem] p-6 space-y-5">
-        <h2 className="font-display text-lg font-bold">Личные данные</h2>
+        <h2 className="font-display text-lg font-bold">{t('personalData')}</h2>
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Вес, кг" value="64" />
-          <Field label="Рост, см" value="168" />
-          <Field label="Возраст" value="28" />
-          <Field label="Цель веса, кг" value="60" />
+          <Field label={t('currentWeight') + ', ' + t('kg')} value="64" />
+          <Field label={t('height')} value="168" />
+          <Field label={t('age')} value="28" />
+          <Field label={t('goalWeight')} value="60" />
         </div>
       </section>
 
       <section className="bg-card border border-border rounded-[1.75rem] p-6 space-y-1">
-        <h2 className="font-display text-lg font-bold mb-3">Напоминания</h2>
+        <h2 className="font-display text-lg font-bold mb-3">{t('reminders')}</h2>
         {[
-          { key: 'meals', icon: 'Utensils', title: 'Приёмы пищи', sub: 'Завтрак, обед, ужин' },
-          { key: 'goals', icon: 'Target', title: 'Достижение целей', sub: 'Когда норма выполнена' },
-          { key: 'water', icon: 'Droplet', title: 'Питьевой режим', sub: 'Каждые 2 часа' },
+          { key: 'meals', icon: 'Utensils', title: t('remMeals'), sub: t('remMealsS') },
+          { key: 'goals', icon: 'Target', title: t('remGoals'), sub: t('remGoalsS') },
+          { key: 'water', icon: 'Droplet', title: t('remWater'), sub: t('remWaterS') },
         ].map((r) => (
           <div key={r.key} className="flex items-center gap-4 py-3 border-b border-border last:border-0">
             <div className="w-11 h-11 rounded-2xl bg-muted flex items-center justify-center shrink-0">
@@ -573,7 +593,7 @@ const ProfileView = ({ notify }: { notify: () => void }) => {
         className="w-full h-14 rounded-2xl text-base font-semibold flex items-center justify-center gap-2.5 bg-[#FFDD2D] text-[#1a1a1a] hover:bg-[#f5d300] transition-colors"
       >
         <Icon name="Heart" size={18} />
-        Поддержать проект
+        {t('support')}
       </a>
     </div>
   );
@@ -587,11 +607,15 @@ const Field = ({ label, value }: { label: string; value: string }) => (
 );
 
 const SettingsSheet = () => {
+  const { t, lang, setLang } = useTranslation();
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
 
   useEffect(() => {
     localStorage.setItem(LS_SETTINGS, JSON.stringify(settings));
-    document.documentElement.classList.toggle('dark', settings.theme === 'dark');
+    const root = document.documentElement;
+    root.classList.remove('dark', 'navy');
+    if (settings.theme === 'dark') root.classList.add('dark');
+    if (settings.theme === 'navy') root.classList.add('navy');
   }, [settings]);
 
   const update = <K extends keyof AppSettings>(key: K, val: AppSettings[K]) =>
@@ -602,44 +626,45 @@ const SettingsSheet = () => {
       <SheetTrigger asChild>
         <Button variant="outline" className="w-full h-14 rounded-2xl text-base font-semibold">
           <Icon name="Settings" size={18} className="mr-2" />
-          Настройки
+          {t('settings')}
         </Button>
       </SheetTrigger>
       <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader>
-          <SheetTitle className="font-display text-2xl font-extrabold text-left">Настройки</SheetTitle>
+          <SheetTitle className="font-display text-2xl font-extrabold text-left">{t('settings')}</SheetTitle>
         </SheetHeader>
 
         <div className="space-y-7 mt-6">
-          <SettingRow icon="Ruler" title="Единицы измерения" sub="Вес и рост">
+          <SettingRow icon="Ruler" title={t('units')} sub={t('unitsSub')}>
             <SegmentGroup
               value={settings.units}
               onChange={(v) => update('units', v as AppSettings['units'])}
               options={[
-                { value: 'metric', label: 'кг / см' },
-                { value: 'imperial', label: 'фунты / дюймы' },
+                { value: 'metric', label: t('metric') },
+                { value: 'imperial', label: t('imperial') },
               ]}
             />
           </SettingRow>
 
-          <SettingRow icon="Flame" title="Энергия" sub="Единицы калорийности">
+          <SettingRow icon="Flame" title={t('energy')} sub={t('energySub')}>
             <SegmentGroup
               value={settings.energy}
               onChange={(v) => update('energy', v as AppSettings['energy'])}
               options={[
-                { value: 'kcal', label: 'ккал' },
+                { value: 'kcal', label: t('kcal') },
                 { value: 'kj', label: 'кДж' },
               ]}
             />
           </SettingRow>
 
-          <SettingRow icon="Moon" title="Оформление" sub="Светлая или тёмная тема">
+          <SettingRow icon="Palette" title={t('theme')} sub={t('themeSub')}>
             <SegmentGroup
               value={settings.theme}
-              onChange={(v) => update('theme', v as AppSettings['theme'])}
+              onChange={(v) => update('theme', v as Theme)}
               options={[
-                { value: 'light', label: 'Светлая' },
-                { value: 'dark', label: 'Тёмная' },
+                { value: 'light', label: t('light') },
+                { value: 'dark', label: t('dark') },
+                { value: 'navy', label: t('navy') },
               ]}
             />
           </SettingRow>
@@ -650,24 +675,24 @@ const SettingsSheet = () => {
                 <Icon name="Languages" size={20} className="text-foreground" />
               </div>
               <div>
-                <p className="font-medium">Язык приложения</p>
-                <p className="text-sm text-muted-foreground">Выберите из списка</p>
+                <p className="font-medium">{t('language')}</p>
+                <p className="text-sm text-muted-foreground">{t('languageSub')}</p>
               </div>
             </div>
             <div className="grid grid-cols-1 gap-2">
               {LANGUAGES.map((l) => (
                 <button
                   key={l.code}
-                  onClick={() => update('lang', l.code)}
+                  onClick={() => setLang(l.code)}
                   className={`flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all ${
-                    settings.lang === l.code
+                    lang === l.code
                       ? 'border-primary bg-primary/5 text-primary'
                       : 'border-border bg-card text-foreground hover:bg-muted'
                   }`}
                 >
                   <span className="text-xl">{l.flag}</span>
                   <span className="font-medium">{l.label}</span>
-                  {settings.lang === l.code && <Icon name="Check" size={18} className="ml-auto" />}
+                  {lang === l.code && <Icon name="Check" size={18} className="ml-auto" />}
                 </button>
               ))}
             </div>

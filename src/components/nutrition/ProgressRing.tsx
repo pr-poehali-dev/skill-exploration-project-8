@@ -6,6 +6,8 @@ interface ProgressRingProps {
   color?: string;
   label: string;
   unit?: string;
+  ofText?: string;
+  leftText?: string;
 }
 
 const ProgressRing = ({
@@ -16,6 +18,8 @@ const ProgressRing = ({
   color = 'hsl(var(--cal))',
   label,
   unit = 'ккал',
+  ofText = 'из',
+  leftText = 'осталось',
 }: ProgressRingProps) => {
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -52,10 +56,10 @@ const ProgressRing = ({
           {value}
         </span>
         <span className="text-sm text-muted-foreground mt-1">
-          из {max} {unit}
+          {ofText} {max} {unit}
         </span>
         <span className="text-xs text-primary font-medium mt-2">
-          {left} {unit} осталось
+          {left} {unit} {leftText}
         </span>
         <span className="sr-only">{label}</span>
       </div>
