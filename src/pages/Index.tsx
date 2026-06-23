@@ -395,7 +395,7 @@ const ProfileView = ({ notify }: { notify: () => void }) => {
       </Button>
 
       <a
-        href="https://www.tinkoff.ru/cf/4NqRrBbVbSA"
+        href="https://tbank.ru/cf/8O611IzOKrc"
         target="_blank"
         rel="noopener noreferrer"
         className="w-full h-14 rounded-2xl text-base font-semibold flex items-center justify-center gap-2.5 bg-[#FFDD2D] text-[#1a1a1a] hover:bg-[#f5d300] transition-colors"
