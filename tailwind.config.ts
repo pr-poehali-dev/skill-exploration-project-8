@@ -52,6 +52,11 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				cal: 'hsl(var(--cal))',
+				macroProtein: 'hsl(var(--protein))',
+				macroFat: 'hsl(var(--fat))',
+				macroCarb: 'hsl(var(--carb))',
+				macroFiber: 'hsl(var(--fiber))',
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
@@ -71,13 +76,6 @@ export default {
 			fontFamily: {
 				display: ['Manrope', 'sans-serif'],
 				sans: ['Golos Text', 'sans-serif'],
-			},
-			colors: {
-				cal: 'hsl(var(--cal))',
-				macroProtein: 'hsl(var(--protein))',
-				macroFat: 'hsl(var(--fat))',
-				macroCarb: 'hsl(var(--carb))',
-				macroFiber: 'hsl(var(--fiber))',
 			},
 			keyframes: {
 				'accordion-down': {
