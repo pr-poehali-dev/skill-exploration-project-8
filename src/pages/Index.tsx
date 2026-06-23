@@ -1,13 +1,37 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
 import ProgressRing from '@/components/nutrition/ProgressRing';
 import MacroBar from '@/components/nutrition/MacroBar';
 import { toast } from 'sonner';
+
+const LS_KEY = 'eatwise_weight_goals';
+
+interface WeightGoals {
+  startWeight: number;
+  targetWeight: number;
+  currentWeight: number;
+}
+
+function loadWeightGoals(): WeightGoals {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) { /* ignore */ }
+  return { startWeight: 116, targetWeight: 95, currentWeight: 115.5 };
+}
+
+function calcNutrition(w: number) {
+  const cal = Math.round(w * 25);
+  const protein = Math.round(w * 2);
+  const fat = Math.round(w * 0.7);
+  const fiber = Math.round((w / 1000) * 14 * 10) / 10;
+  const carb = Math.round((cal - (protein * 4 + fat * 9)) / 4);
+  return { cal, protein, fat, carb, fiber };
+}
 
 const FOOD_IMG =
   'https://cdn.poehali.dev/projects/e6e9bd5f-1d4b-4442-bfac-18c3d0c53b14/files/31646f36-1cec-4eba-8747-044a81070fc8.jpg';
@@ -164,72 +188,146 @@ const DayView = ({
   </div>
 );
 
-const GoalsView = ({ notify }: { notify: () => void }) => {
-  const [cal, setCal] = useState([2100]);
-  const [protein, setProtein] = useState([140]);
-  const [fiber, setFiber] = useState([30]);
+const GoalsView = ({ notify: _notify }: { notify: () => void }) => {
+  const [data, setData] = useState<WeightGoals>(loadWeightGoals);
+  const [draft, setDraft] = useState<WeightGoals>(loadWeightGoals);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setDraft({ ...data });
+  }, [data]);
+
+  const nutrition = calcNutrition(data.currentWeight);
+
+  const totalToLose = Math.max(data.startWeight - data.targetWeight, 0.01);
+  const alreadyLost = Math.max(data.startWeight - data.currentWeight, 0);
+  const remaining = Math.max(data.currentWeight - data.targetWeight, 0);
+  const progressPct = Math.min(Math.round((alreadyLost / totalToLose) * 100), 100);
+
+  const handleSave = () => {
+    setData({ ...draft });
+    localStorage.setItem(LS_KEY, JSON.stringify(draft));
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleChange = (field: keyof WeightGoals, val: string) => {
+    const num = parseFloat(val.replace(',', '.'));
+    setDraft((d) => ({ ...d, [field]: isNaN(num) ? 0 : num }));
+  };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-5 animate-fade-in">
       <div className="px-1">
         <h1 className="font-display text-3xl font-extrabold">Цели</h1>
-        <p className="text-muted-foreground mt-1">Дневные нормы по нутриентам</p>
+        <p className="text-muted-foreground mt-1">Введите данные — нормы пересчитаются автоматически</p>
       </div>
 
-      <section className="bg-card border border-border rounded-[1.75rem] p-7 space-y-8">
-        <GoalSlider label="Калории" value={cal} onChange={setCal} min={1200} max={4000} step={50} unit="ккал" color="hsl(var(--cal))" />
-        <GoalSlider label="Белки" value={protein} onChange={setProtein} min={50} max={300} step={5} unit="г" color="hsl(var(--protein))" />
-        <GoalSlider label="Клетчатка" value={fiber} onChange={setFiber} min={10} max={60} step={1} unit="г" color="hsl(var(--fiber))" />
+      {/* Весовые данные */}
+      <section className="bg-card border border-border rounded-[1.75rem] p-6 space-y-4">
+        <h2 className="font-display text-lg font-bold">Данные по весу</h2>
+        <div className="grid grid-cols-3 gap-3">
+          <WeightField label="Начальный" unit="кг" value={draft.startWeight} onChange={(v) => handleChange('startWeight', v)} />
+          <WeightField label="Целевой" unit="кг" value={draft.targetWeight} onChange={(v) => handleChange('targetWeight', v)} />
+          <WeightField label="Текущий" unit="кг" value={draft.currentWeight} onChange={(v) => handleChange('currentWeight', v)} highlight />
+        </div>
       </section>
 
-      <section className="bg-card border border-border rounded-[1.75rem] p-6 space-y-1">
-        <h2 className="font-display text-lg font-bold mb-2">Готовые планы</h2>
-        {['Поддержание веса', 'Снижение веса', 'Набор массы'].map((p, i) => (
-          <button
-            key={p}
-            onClick={notify}
-            className="w-full flex items-center justify-between py-3.5 border-b border-border last:border-0 group"
-          >
-            <span className="font-medium group-hover:text-primary transition-colors">{p}</span>
-            <Icon name="ChevronRight" size={18} className="text-muted-foreground" />
-          </button>
-        ))}
+      {/* Прогресс снижения */}
+      <section className="bg-card border border-border rounded-[1.75rem] p-6">
+        <h2 className="font-display text-lg font-bold mb-4">Прогресс похудения</h2>
+        <div className="grid grid-cols-3 gap-3 mb-5">
+          <StatChip label="Сброшено" value={`${alreadyLost.toFixed(1)} кг`} color="text-macroProtein" />
+          <StatChip label="Осталось" value={`${remaining.toFixed(1)} кг`} color="text-cal" />
+          <StatChip label="Выполнено" value={`${progressPct}%`} color="text-primary" />
+        </div>
+        <div className="space-y-1.5">
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>{data.startWeight} кг</span>
+            <span>{data.targetWeight} кг</span>
+          </div>
+          <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-700"
+              style={{ width: `${progressPct}%`, backgroundColor: 'hsl(var(--protein))' }}
+            />
+          </div>
+        </div>
       </section>
 
-      <Button onClick={notify} className="w-full h-14 rounded-2xl text-base font-semibold">
-        Сохранить цели
+      {/* Расчётные нормы КБЖУ */}
+      <section className="bg-card border border-border rounded-[1.75rem] p-6 space-y-5">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg font-bold">Суточные нормы</h2>
+          <span className="text-sm text-muted-foreground">для {data.currentWeight} кг</span>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <NormCard label="Калории" value={nutrition.cal} unit="ккал" color="hsl(var(--cal))" />
+          <NormCard label="Белки" value={nutrition.protein} unit="г" color="hsl(var(--protein))" />
+          <NormCard label="Жиры" value={nutrition.fat} unit="г" color="hsl(var(--fat))" />
+          <NormCard label="Углеводы" value={nutrition.carb} unit="г" color="hsl(var(--carb))" />
+        </div>
+        <div className="bg-muted rounded-2xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'hsl(var(--fiber) / 0.15)' }}>
+              <Icon name="Leaf" size={18} style={{ color: 'hsl(var(--fiber))' }} />
+            </div>
+            <span className="font-medium">Клетчатка</span>
+          </div>
+          <span className="font-display text-2xl font-bold" style={{ color: 'hsl(var(--fiber))' }}>
+            {nutrition.fiber} <span className="text-sm text-muted-foreground font-sans font-normal">г</span>
+          </span>
+        </div>
+      </section>
+
+      <Button
+        onClick={handleSave}
+        className="w-full h-14 rounded-2xl text-base font-semibold"
+      >
+        {saved ? (
+          <><Icon name="Check" size={18} className="mr-2" />Сохранено</>
+        ) : (
+          'Сохранить данные'
+        )}
       </Button>
     </div>
   );
 };
 
-const GoalSlider = ({
-  label,
-  value,
-  onChange,
-  min,
-  max,
-  step,
-  unit,
-  color,
+const WeightField = ({
+  label, unit, value, onChange, highlight,
 }: {
-  label: string;
-  value: number[];
-  onChange: (v: number[]) => void;
-  min: number;
-  max: number;
-  step: number;
-  unit: string;
-  color: string;
+  label: string; unit: string; value: number; onChange: (v: string) => void; highlight?: boolean;
 }) => (
-  <div className="space-y-3">
-    <div className="flex items-baseline justify-between">
-      <span className="font-medium">{label}</span>
-      <span className="font-display text-xl font-bold" style={{ color }}>
-        {value[0]} <span className="text-sm text-muted-foreground font-sans font-normal">{unit}</span>
-      </span>
+  <div className={`rounded-2xl p-3.5 border space-y-1 ${highlight ? 'border-primary bg-primary/5' : 'border-border bg-background'}`}>
+    <p className="text-xs text-muted-foreground">{label}</p>
+    <div className="flex items-baseline gap-1">
+      <input
+        type="number"
+        step="0.1"
+        defaultValue={value}
+        key={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`w-full bg-transparent font-display text-xl font-bold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${highlight ? 'text-primary' : 'text-foreground'}`}
+      />
+      <span className="text-xs text-muted-foreground shrink-0">{unit}</span>
     </div>
-    <Slider value={value} onValueChange={onChange} min={min} max={max} step={step} />
+  </div>
+);
+
+const StatChip = ({ label, value, color }: { label: string; value: string; color: string }) => (
+  <div className="bg-muted rounded-2xl p-3.5 text-center">
+    <p className={`font-display text-lg font-bold ${color}`}>{value}</p>
+    <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+  </div>
+);
+
+const NormCard = ({ label, value, unit, color }: { label: string; value: number; unit: string; color: string }) => (
+  <div className="rounded-2xl border border-border bg-background p-4 flex items-center justify-between">
+    <span className="text-sm font-medium text-muted-foreground">{label}</span>
+    <span className="font-display text-xl font-bold" style={{ color }}>
+      {value} <span className="text-xs text-muted-foreground font-sans font-normal">{unit}</span>
+    </span>
   </div>
 );
 
