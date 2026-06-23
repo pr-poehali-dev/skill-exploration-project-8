@@ -47,28 +47,23 @@ interface Meal {
   fiber: number;
 }
 
-// Приёмы пищи по дням недели (0=Пн … 6=Вс)
+// Приёмы пищи по дням недели (0=Пн … 6=Вс). Пусто — пользователь ещё ничего не вводил.
 const MEALS_BY_DAY: Record<number, Meal[]> = {
-  0: [
-    { name: 'Боул с лососем', time: '08:30', img: FOOD_IMG, cal: 520, protein: 38, fat: 24, carb: 41, fiber: 9 },
-    { name: 'Греческий салат', time: '13:15', img: FOOD_IMG, cal: 310, protein: 12, fat: 22, carb: 18, fiber: 6 },
-  ],
-  1: [
-    { name: 'Овсянка с ягодами', time: '08:00', img: FOOD_IMG, cal: 280, protein: 9, fat: 6, carb: 48, fiber: 7 },
-    { name: 'Куриная грудка с рисом', time: '14:00', img: FOOD_IMG, cal: 450, protein: 42, fat: 10, carb: 50, fiber: 4 },
-  ],
-  2: [
-    { name: 'Боул с лососем', time: '08:30', img: FOOD_IMG, cal: 520, protein: 38, fat: 24, carb: 41, fiber: 9 },
-    { name: 'Греческий салат', time: '13:15', img: FOOD_IMG, cal: 310, protein: 12, fat: 22, carb: 18, fiber: 6 },
-    { name: 'Овсянка с ягодами', time: '17:40', img: FOOD_IMG, cal: 280, protein: 9, fat: 6, carb: 48, fiber: 7 },
-  ],
-  3: [
-    { name: 'Омлет с овощами', time: '09:00', img: FOOD_IMG, cal: 340, protein: 22, fat: 24, carb: 8, fiber: 3 },
-  ],
+  0: [],
+  1: [],
+  2: [],
+  3: [],
   4: [],
   5: [],
   6: [],
 };
+
+// Демо-данные для вкладки «Пример»
+const EXAMPLE_MEALS: Meal[] = [
+  { name: 'Боул с лососем', time: '08:30', img: FOOD_IMG, cal: 520, protein: 38, fat: 24, carb: 41, fiber: 9 },
+  { name: 'Греческий салат', time: '13:15', img: FOOD_IMG, cal: 310, protein: 12, fat: 22, carb: 18, fiber: 6 },
+  { name: 'Овсянка с ягодами', time: '17:40', img: FOOD_IMG, cal: 280, protein: 9, fat: 6, carb: 48, fiber: 7 },
+];
 
 function sumMeals(list: Meal[]) {
   return list.reduce(
@@ -103,7 +98,7 @@ function getMoscowWeek() {
 }
 
 const Index = () => {
-  const [tab, setTab] = useState<'day' | 'goals' | 'profile'>('day');
+  const [tab, setTab] = useState<'day' | 'example' | 'goals' | 'profile'>('day');
   const { week, todayIdx } = getMoscowWeek();
   const [activeDay, setActiveDay] = useState(todayIdx);
   const [weightGoals, setWeightGoals] = useState<WeightGoals>(loadWeightGoals);
@@ -128,6 +123,7 @@ const Index = () => {
 
       <main className="max-w-2xl mx-auto px-5">
         {tab === 'day' && <DayView activeDay={activeDay} setActiveDay={setActiveDay} notify={notify} goals={nutrition} week={week} todayIdx={todayIdx} />}
+        {tab === 'example' && <ExampleView goals={nutrition} onStart={() => setTab('day')} />}
         {tab === 'goals' && <GoalsView notify={notify} weightGoals={weightGoals} onSave={setWeightGoals} />}
         {tab === 'profile' && <ProfileView notify={notify} />}
       </main>
@@ -137,13 +133,14 @@ const Index = () => {
           <div className="bg-card/80 backdrop-blur-xl border border-border rounded-[1.75rem] shadow-lg shadow-black/5 flex items-center justify-around p-2">
             {[
               { id: 'day', icon: 'CircleGauge', label: 'День' },
+              { id: 'example', icon: 'Sparkles', label: 'Пример' },
               { id: 'goals', icon: 'Target', label: 'Цели' },
               { id: 'profile', icon: 'User', label: 'Профиль' },
             ].map((t) => (
               <button
                 key={t.id}
                 onClick={() => setTab(t.id as typeof tab)}
-                className={`flex flex-col items-center gap-1 px-6 py-2.5 rounded-2xl transition-all ${
+                className={`flex flex-col items-center gap-1 px-4 py-2.5 rounded-2xl transition-all ${
                   tab === t.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -248,6 +245,95 @@ const DayView = ({
       ))}
     </section>
   </div>
+  );
+};
+
+const ExampleView = ({
+  goals,
+  onStart,
+}: {
+  goals: ReturnType<typeof calcNutrition>;
+  onStart: () => void;
+}) => {
+  const eaten = sumMeals(EXAMPLE_MEALS);
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="rounded-[1.75rem] bg-primary text-primary-foreground p-6">
+        <div className="flex items-center gap-2 text-sm opacity-90 mb-2">
+          <Icon name="Sparkles" size={16} />
+          <span>Как это работает</span>
+        </div>
+        <h1 className="font-display text-2xl font-extrabold leading-tight">
+          Фотографируй еду — приложение само посчитает КБЖУ
+        </h1>
+        <p className="text-sm opacity-85 mt-2">
+          Вот пример заполненного дня. Твой экран будет выглядеть так же.
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {[
+          { icon: 'Camera', title: '1. Сфотографируй блюдо', sub: 'Наведи камеру на тарелку' },
+          { icon: 'Brain', title: '2. ИИ определит еду и вес', sub: 'Распознаёт блюдо и граммовку' },
+          { icon: 'ChartPie', title: '3. КБЖУ добавится в день', sub: 'Калории, белки, жиры, углеводы, клетчатка' },
+        ].map((s) => (
+          <div key={s.title} className="bg-card border border-border rounded-2xl p-4 flex items-center gap-4">
+            <div className="w-11 h-11 rounded-2xl bg-accent flex items-center justify-center shrink-0">
+              <Icon name={s.icon} size={20} className="text-accent-foreground" />
+            </div>
+            <div>
+              <p className="font-semibold">{s.title}</p>
+              <p className="text-sm text-muted-foreground">{s.sub}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="relative">
+        <span className="absolute -top-3 left-5 z-10 bg-macroFiber text-white text-xs font-medium px-3 py-1 rounded-full">
+          Пример дня
+        </span>
+        <section className="bg-card border border-border rounded-[1.75rem] p-7 flex flex-col items-center">
+          <ProgressRing value={eaten.cal} max={goals.cal} color="hsl(var(--cal))" label="Калории" />
+          <div className="w-full grid grid-cols-2 gap-x-8 gap-y-5 mt-8">
+            <MacroBar label="Белки" value={eaten.protein} max={goals.protein} color="hsl(var(--protein))" />
+            <MacroBar label="Жиры" value={eaten.fat} max={goals.fat} color="hsl(var(--fat))" />
+            <MacroBar label="Углеводы" value={eaten.carb} max={goals.carb} color="hsl(var(--carb))" />
+            <MacroBar label="Клетчатка" value={eaten.fiber} max={goals.fiber} color="hsl(var(--fiber))" />
+          </div>
+        </section>
+      </div>
+
+      <section className="space-y-3">
+        <h2 className="font-display text-lg font-bold px-1">Приёмы пищи в примере</h2>
+        {EXAMPLE_MEALS.map((m, i) => (
+          <div key={i} className="bg-card border border-border rounded-[1.5rem] p-3 flex items-center gap-4">
+            <img src={m.img} alt={m.name} className="w-16 h-16 rounded-2xl object-cover" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="font-semibold truncate">{m.name}</p>
+                <span className="text-xs text-muted-foreground">{m.time}</span>
+              </div>
+              <div className="flex gap-3 mt-1.5 text-xs text-muted-foreground">
+                <span className="text-macroProtein font-medium">Б {m.protein}</span>
+                <span className="text-macroFat font-medium">Ж {m.fat}</span>
+                <span className="text-macroCarb font-medium">У {m.carb}</span>
+                <span className="text-macroFiber font-medium">Кл {m.fiber}</span>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="font-display font-bold text-cal">{m.cal}</p>
+              <p className="text-[11px] text-muted-foreground">ккал</p>
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <Button onClick={onStart} className="w-full h-14 rounded-2xl text-base font-semibold">
+        <Icon name="Rocket" size={18} className="mr-2" />
+        Начать вести свой день
+      </Button>
+    </div>
   );
 };
 
