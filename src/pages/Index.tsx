@@ -4,11 +4,40 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import ProgressRing from '@/components/nutrition/ProgressRing';
 import MacroBar from '@/components/nutrition/MacroBar';
 import { toast } from 'sonner';
 
 const LS_KEY = 'eatwise_weight_goals';
+const LS_SETTINGS = 'eatwise_settings';
+
+const LANGUAGES = [
+  { code: 'ru', label: 'Русский', flag: '🇷🇺' },
+  { code: 'en', label: 'English', flag: '🇬🇧' },
+  { code: 'es', label: 'Español', flag: '🇪🇸' },
+  { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
+  { code: 'fr', label: 'Français', flag: '🇫🇷' },
+  { code: 'zh', label: '中文', flag: '🇨🇳' },
+  { code: 'tr', label: 'Türkçe', flag: '🇹🇷' },
+];
+
+interface AppSettings {
+  units: 'metric' | 'imperial';
+  energy: 'kcal' | 'kj';
+  theme: 'light' | 'dark';
+  lang: string;
+}
+
+const DEFAULT_SETTINGS: AppSettings = { units: 'metric', energy: 'kcal', theme: 'light', lang: 'ru' };
+
+function loadSettings(): AppSettings {
+  try {
+    const raw = localStorage.getItem(LS_SETTINGS);
+    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+  } catch (e) { /* ignore */ }
+  return DEFAULT_SETTINGS;
+}
 
 interface WeightGoals {
   startWeight: number;
@@ -535,10 +564,7 @@ const ProfileView = ({ notify }: { notify: () => void }) => {
         ))}
       </section>
 
-      <Button onClick={notify} variant="outline" className="w-full h-14 rounded-2xl text-base font-semibold">
-        <Icon name="Settings" size={18} className="mr-2" />
-        Настройки
-      </Button>
+      <SettingsSheet />
 
       <a
         href="https://tbank.ru/cf/8O611IzOKrc"
@@ -557,6 +583,137 @@ const Field = ({ label, value }: { label: string; value: string }) => (
   <div className="space-y-1.5">
     <Label className="text-muted-foreground text-sm">{label}</Label>
     <Input defaultValue={value} className="h-12 rounded-xl bg-background" />
+  </div>
+);
+
+const SettingsSheet = () => {
+  const [settings, setSettings] = useState<AppSettings>(loadSettings);
+
+  useEffect(() => {
+    localStorage.setItem(LS_SETTINGS, JSON.stringify(settings));
+    document.documentElement.classList.toggle('dark', settings.theme === 'dark');
+  }, [settings]);
+
+  const update = <K extends keyof AppSettings>(key: K, val: AppSettings[K]) =>
+    setSettings((s) => ({ ...s, [key]: val }));
+
+  return (
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button variant="outline" className="w-full h-14 rounded-2xl text-base font-semibold">
+          <Icon name="Settings" size={18} className="mr-2" />
+          Настройки
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle className="font-display text-2xl font-extrabold text-left">Настройки</SheetTitle>
+        </SheetHeader>
+
+        <div className="space-y-7 mt-6">
+          <SettingRow icon="Ruler" title="Единицы измерения" sub="Вес и рост">
+            <SegmentGroup
+              value={settings.units}
+              onChange={(v) => update('units', v as AppSettings['units'])}
+              options={[
+                { value: 'metric', label: 'кг / см' },
+                { value: 'imperial', label: 'фунты / дюймы' },
+              ]}
+            />
+          </SettingRow>
+
+          <SettingRow icon="Flame" title="Энергия" sub="Единицы калорийности">
+            <SegmentGroup
+              value={settings.energy}
+              onChange={(v) => update('energy', v as AppSettings['energy'])}
+              options={[
+                { value: 'kcal', label: 'ккал' },
+                { value: 'kj', label: 'кДж' },
+              ]}
+            />
+          </SettingRow>
+
+          <SettingRow icon="Moon" title="Оформление" sub="Светлая или тёмная тема">
+            <SegmentGroup
+              value={settings.theme}
+              onChange={(v) => update('theme', v as AppSettings['theme'])}
+              options={[
+                { value: 'light', label: 'Светлая' },
+                { value: 'dark', label: 'Тёмная' },
+              ]}
+            />
+          </SettingRow>
+
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-muted flex items-center justify-center shrink-0">
+                <Icon name="Languages" size={20} className="text-foreground" />
+              </div>
+              <div>
+                <p className="font-medium">Язык приложения</p>
+                <p className="text-sm text-muted-foreground">Выберите из списка</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              {LANGUAGES.map((l) => (
+                <button
+                  key={l.code}
+                  onClick={() => update('lang', l.code)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all ${
+                    settings.lang === l.code
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-border bg-card text-foreground hover:bg-muted'
+                  }`}
+                >
+                  <span className="text-xl">{l.flag}</span>
+                  <span className="font-medium">{l.label}</span>
+                  {settings.lang === l.code && <Icon name="Check" size={18} className="ml-auto" />}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+};
+
+const SettingRow = ({
+  icon, title, sub, children,
+}: {
+  icon: string; title: string; sub: string; children: React.ReactNode;
+}) => (
+  <div className="space-y-3">
+    <div className="flex items-center gap-3">
+      <div className="w-10 h-10 rounded-2xl bg-muted flex items-center justify-center shrink-0">
+        <Icon name={icon} size={20} className="text-foreground" />
+      </div>
+      <div>
+        <p className="font-medium">{title}</p>
+        <p className="text-sm text-muted-foreground">{sub}</p>
+      </div>
+    </div>
+    {children}
+  </div>
+);
+
+const SegmentGroup = ({
+  value, onChange, options,
+}: {
+  value: string; onChange: (v: string) => void; options: { value: string; label: string }[];
+}) => (
+  <div className="flex gap-1.5 p-1 bg-muted rounded-2xl">
+    {options.map((o) => (
+      <button
+        key={o.value}
+        onClick={() => onChange(o.value)}
+        className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
+          value === o.value ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
+        }`}
+      >
+        {o.label}
+      </button>
+    ))}
   </div>
 );
 
