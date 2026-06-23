@@ -53,11 +53,29 @@ const eaten = meals.reduce(
   { cal: 0, protein: 0, fat: 0, carb: 0, fiber: 0 }
 );
 
-const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+const DAYS_SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+function getMoscowWeek() {
+  // Получаем текущее время по МСК (UTC+3)
+  const now = new Date();
+  const msk = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Moscow' }));
+  // JS: 0=вс,1=пн..6=сб → приводим к 0=пн..6=вс
+  const todayIdx = (msk.getDay() + 6) % 7;
+  // Начало недели (понедельник)
+  const monday = new Date(msk);
+  monday.setDate(msk.getDate() - todayIdx);
+  const week = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d.getDate();
+  });
+  return { week, todayIdx };
+}
 
 const Index = () => {
   const [tab, setTab] = useState<'day' | 'goals' | 'profile'>('day');
-  const [activeDay, setActiveDay] = useState(2);
+  const { week, todayIdx } = getMoscowWeek();
+  const [activeDay, setActiveDay] = useState(todayIdx);
   const [weightGoals, setWeightGoals] = useState<WeightGoals>(loadWeightGoals);
 
   const nutrition = calcNutrition(weightGoals.currentWeight, weightGoals.targetWeight);
@@ -79,7 +97,7 @@ const Index = () => {
       </header>
 
       <main className="max-w-2xl mx-auto px-5">
-        {tab === 'day' && <DayView activeDay={activeDay} setActiveDay={setActiveDay} notify={notify} goals={nutrition} />}
+        {tab === 'day' && <DayView activeDay={activeDay} setActiveDay={setActiveDay} notify={notify} goals={nutrition} week={week} todayIdx={todayIdx} />}
         {tab === 'goals' && <GoalsView notify={notify} weightGoals={weightGoals} onSave={setWeightGoals} />}
         {tab === 'profile' && <ProfileView notify={notify} />}
       </main>
@@ -115,24 +133,32 @@ const DayView = ({
   setActiveDay,
   notify,
   goals,
+  week,
+  todayIdx,
 }: {
   activeDay: number;
   setActiveDay: (n: number) => void;
   notify: () => void;
   goals: ReturnType<typeof calcNutrition>;
+  week: number[];
+  todayIdx: number;
 }) => (
   <div className="space-y-6 animate-fade-in">
     <div className="flex gap-1.5 justify-between">
-      {days.map((d, i) => (
+      {DAYS_SHORT.map((d, i) => (
         <button
           key={d}
           onClick={() => setActiveDay(i)}
           className={`flex-1 flex flex-col items-center gap-1.5 py-2.5 rounded-2xl transition-all ${
-            activeDay === i ? 'bg-primary text-primary-foreground' : 'bg-card border border-border text-muted-foreground'
+            activeDay === i
+              ? 'bg-primary text-primary-foreground'
+              : i === todayIdx
+              ? 'bg-accent border border-primary/30 text-primary'
+              : 'bg-card border border-border text-muted-foreground'
           }`}
         >
           <span className="text-[11px] font-medium">{d}</span>
-          <span className="text-base font-display font-bold">{17 + i}</span>
+          <span className="text-base font-display font-bold">{week[i]}</span>
         </button>
       ))}
     </div>
