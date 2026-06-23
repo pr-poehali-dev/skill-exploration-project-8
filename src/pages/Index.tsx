@@ -595,6 +595,7 @@ const NormCard = ({ label, value, unit, color }: { label: string; value: number;
 const ProfileView = ({ notify: _notify }: { notify: () => void }) => {
   const { t } = useTranslation();
   const [reminders, setReminders] = useState({ meals: true, goals: true, water: false });
+  const [gender, setGender] = useState<'male' | 'female'>('female');
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -604,17 +605,27 @@ const ProfileView = ({ notify: _notify }: { notify: () => void }) => {
         </div>
         <div>
           <h1 className="font-display text-2xl font-extrabold">Анна</h1>
-          <p className="text-muted-foreground">28 лет · 64 кг · 168 см</p>
+          <p className="text-muted-foreground">28 · 168 см</p>
         </div>
       </section>
 
       <section className="bg-card border border-border rounded-[1.75rem] p-6 space-y-5">
         <h2 className="font-display text-lg font-bold">{t('personalData')}</h2>
+        <Field label={t('name')} value="Анна" />
         <div className="grid grid-cols-2 gap-4">
-          <Field label={t('currentWeight') + ', ' + t('kg')} value="64" />
           <Field label={t('height')} value="168" />
           <Field label={t('age')} value="28" />
-          <Field label={t('goalWeight')} value="60" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-muted-foreground text-sm">{t('gender')}</Label>
+          <SegmentGroup
+            value={gender}
+            onChange={(v) => setGender(v as 'male' | 'female')}
+            options={[
+              { value: 'female', label: t('female') },
+              { value: 'male', label: t('male') },
+            ]}
+          />
         </div>
       </section>
 
