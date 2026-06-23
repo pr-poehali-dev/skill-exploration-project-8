@@ -559,22 +559,40 @@ const WeightField = ({
   label, unit, value, onChange, highlight,
 }: {
   label: string; unit: string; value: number; onChange: (v: string) => void; highlight?: boolean;
-}) => (
-  <div className={`rounded-2xl p-3.5 border space-y-1 ${highlight ? 'border-primary bg-primary/5' : 'border-border bg-background'}`}>
-    <p className="text-xs text-muted-foreground">{label}</p>
-    <div className="flex items-baseline gap-1">
-      <input
-        type="number"
-        step="0.1"
-        defaultValue={value}
-        key={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={`w-full bg-transparent font-display text-xl font-bold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${highlight ? 'text-primary' : 'text-foreground'}`}
-      />
-      <span className="text-xs text-muted-foreground shrink-0">{unit}</span>
+}) => {
+  const [text, setText] = useState(String(value));
+
+  useEffect(() => {
+    // Синхронизируем с внешним значением только если оно реально отличается
+    // (например, после загрузки сохранённых данных), не мешая вводу дробей
+    if (parseFloat(text.replace(',', '.')) !== value) {
+      setText(String(value));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  return (
+    <div className={`rounded-2xl p-3.5 border space-y-1 ${highlight ? 'border-primary bg-primary/5' : 'border-border bg-background'}`}>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <div className="flex items-baseline gap-1">
+        <input
+          type="text"
+          inputMode="decimal"
+          value={text}
+          onChange={(e) => {
+            const v = e.target.value.replace(',', '.');
+            if (v === '' || /^\d*\.?\d*$/.test(v)) {
+              setText(v);
+              onChange(v);
+            }
+          }}
+          className={`w-full bg-transparent font-display text-xl font-bold outline-none ${highlight ? 'text-primary' : 'text-foreground'}`}
+        />
+        <span className="text-xs text-muted-foreground shrink-0">{unit}</span>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const StatChip = ({ label, value, color }: { label: string; value: string; color: string }) => (
   <div className="bg-muted rounded-2xl p-3.5 text-center">
