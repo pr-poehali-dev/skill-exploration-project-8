@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import urllib.error
 import urllib.request
 
 
@@ -73,7 +74,16 @@ def handler(event: dict, context) -> dict:
         method='POST',
     )
 
-    resp_data = urllib.request.urlopen(req).read()
+    try:
+        resp_data = urllib.request.urlopen(req).read()
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8', errors='replace')
+        return {
+            'statusCode': 502,
+            'headers': {'Access-Control-Allow-Origin': '*'},
+            'body': json.dumps({'error': f'OpenRouter {e.code}', 'detail': error_body[:500]}),
+        }
+
     resp_json = json.loads(resp_data)
 
     raw = resp_json.get('choices', [{}])[0].get('message', {}).get('content', '')
