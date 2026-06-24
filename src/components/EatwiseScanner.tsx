@@ -160,11 +160,12 @@ export default function EatwiseScanner({ onAdd, onClose }: Props) {
         body: JSON.stringify({ data: imageBase64.data, media_type: imageBase64.mimeType }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Ошибка сервера');
+      if (!res.ok) throw new Error(`${json.error || 'Ошибка сервера'} | ${json.detail || ''}`);
       setResult(json);
     } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Неизвестная ошибка';
       console.error(err);
-      setError('Не удалось распознать блюдо. Попробуй другое фото.');
+      setError(msg);
     } finally {
       setLoading(false);
     }
