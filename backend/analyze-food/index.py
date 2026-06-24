@@ -45,7 +45,7 @@ def handler(event: dict, context) -> dict:
     )
 
     payload = json.dumps({
-        'model': 'google/gemini-2.0-flash-exp:free',
+        'model': 'google/gemini-2.0-flash',
         'messages': [{
             'role': 'user',
             'content': [
