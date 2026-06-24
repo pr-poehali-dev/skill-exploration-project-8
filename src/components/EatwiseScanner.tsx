@@ -1,25 +1,45 @@
 import { useState, useRef } from 'react';
 import Icon from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
-import func2url from '../../backend/func2url.json';
+import { LS_KEY } from '@/lib/eatwise-types';
 
-const ANALYZE_URL = func2url['analyze-food'];
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string;
 
-const LS_KEY = 'eatwise_weight_goals';
+const MACRO_COLORS: Record<string, string> = {
+  calories: 'hsl(var(--cal))',
+  protein:  'hsl(var(--protein))',
+  fat:      'hsl(var(--fat))',
+  carbs:    'hsl(var(--carb))',
+  fiber:    'hsl(var(--fiber))',
+};
 
-function loadNorms() {
+const MACRO_LABELS: Record<string, string> = {
+  calories: 'Калории',
+  protein:  'Белки',
+  fat:      'Жиры',
+  carbs:    'Углеводы',
+  fiber:    'Клетчатка',
+};
+
+const MACRO_UNITS: Record<string, string> = {
+  calories: 'ккал',
+  protein:  'г',
+  fat:      'г',
+  carbs:    'г',
+  fiber:    'г',
+};
+
+function getNorms() {
   try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (raw) {
-      const g = JSON.parse(raw);
-      const currentWeight = g.currentWeight ?? 90;
-      const targetWeight = g.targetWeight ?? 80;
-      const cal = Math.round(currentWeight * 25);
-      const protein = Math.round(targetWeight * 2);
-      const fat = Math.round(currentWeight * 0.7);
-      const fiber = Math.round((cal / 1000) * 14 * 10) / 10;
-      const carb = Math.round((cal - (protein * 4 + fat * 9)) / 4);
-      return { calories: cal, protein, fat, carbs: carb, fiber };
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved) {
+      const g = JSON.parse(saved);
+      const cals = g.currentWeight * 25;
+      const protein = Math.round(g.targetWeight * 2);
+      const fat = Math.round(g.currentWeight * 0.7);
+      const fiber = Math.round((cals / 1000) * 14);
+      const carbs = Math.round((cals - protein * 4 - fat * 9) / 4);
+      return { calories: Math.round(cals), protein, fat, carbs, fiber };
     }
   } catch (_e) { /* ignore */ }
   return { calories: 2500, protein: 150, fat: 80, carbs: 300, fiber: 35 };
@@ -43,34 +63,25 @@ interface Props {
   onClose: () => void;
 }
 
-const MACRO_COLORS: Record<string, string> = {
-  calories: 'hsl(var(--cal))',
-  protein:  'hsl(var(--protein))',
-  fat:      'hsl(var(--fat))',
-  carbs:    'hsl(var(--carb))',
-  fiber:    'hsl(var(--fiber))',
-};
-
-function MacroRow({ label, value, unit, pct, color }: {
-  label: string; value: number; unit: string; pct: number | null; color: string;
-}) {
+function MacroCard({ macro, value, daily }: { macro: string; value: number; daily: number }) {
+  const pct = daily ? Math.min(100, Math.round((value / daily) * 100)) : null;
   return (
-    <div className="space-y-1.5">
+    <div className="bg-card border border-border rounded-2xl p-4 flex flex-col gap-2">
       <div className="flex items-baseline justify-between">
-        <span className="text-sm font-medium text-foreground">{label}</span>
-        <span className="text-sm text-muted-foreground">
-          <span className="font-semibold text-foreground">{value}</span> {unit}
+        <span className="text-sm font-medium text-muted-foreground">{MACRO_LABELS[macro]}</span>
+        <span className="font-semibold text-foreground">
+          {value} <span className="text-xs font-normal text-muted-foreground">{MACRO_UNITS[macro]}</span>
         </span>
       </div>
       {pct !== null && (
         <>
-          <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
             <div
               className="h-full rounded-full transition-all duration-700"
-              style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: color }}
+              style={{ width: `${pct}%`, backgroundColor: MACRO_COLORS[macro] }}
             />
           </div>
-          <p className="text-[11px] text-muted-foreground">{pct}% от нормы</p>
+          <p className="text-[11px] text-muted-foreground">{pct}% от нормы ({daily} {MACRO_UNITS[macro]})</p>
         </>
       )}
     </div>
@@ -80,7 +91,7 @@ function MacroRow({ label, value, unit, pct, color }: {
 function DishItem({ dish }: { dish: ScanResult['dishes'][0] }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="bg-background border border-border rounded-2xl overflow-hidden">
+    <div className="bg-card border border-border rounded-2xl overflow-hidden">
       <button
         onClick={() => setOpen(o => !o)}
         className="w-full px-4 py-3 flex items-center justify-between text-left"
@@ -96,12 +107,10 @@ function DishItem({ dish }: { dish: ScanResult['dishes'][0] }) {
         />
       </button>
       {open && (
-        <div className="px-4 pb-3 grid grid-cols-2 gap-2 border-t border-border pt-3">
+        <div className="px-4 pb-3 pt-3 grid grid-cols-2 gap-2 border-t border-border">
           {(['protein', 'fat', 'carbs', 'fiber'] as const).map(m => (
             <div key={m} className="bg-muted rounded-xl px-3 py-2">
-              <p className="text-[11px] text-muted-foreground capitalize">
-                {{ protein: 'Белки', fat: 'Жиры', carbs: 'Углеводы', fiber: 'Клетчатка' }[m]}
-              </p>
+              <p className="text-[11px] text-muted-foreground">{MACRO_LABELS[m]}</p>
               <p className="text-sm font-bold" style={{ color: MACRO_COLORS[m] }}>{dish[m]} г</p>
             </div>
           ))}
@@ -114,14 +123,14 @@ function DishItem({ dish }: { dish: ScanResult['dishes'][0] }) {
 export default function EatwiseScanner({ onAdd, onClose }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
-  const [imageBase64, setImageBase64] = useState<{ data: string; media_type: string } | null>(null);
+  const [imageBase64, setImageBase64] = useState<{ data: string; mimeType: string } | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [added, setAdded] = useState(false);
 
-  const norms = loadNorms();
+  const norms = getNorms();
 
   const handleFile = (file: File | null | undefined) => {
     if (!file) return;
@@ -129,7 +138,7 @@ export default function EatwiseScanner({ onAdd, onClose }: Props) {
     reader.onload = (e) => {
       const dataUrl = e.target?.result as string;
       setImagePreview(dataUrl);
-      setImageBase64({ data: dataUrl.split(',')[1], media_type: file.type || 'image/jpeg' });
+      setImageBase64({ data: dataUrl.split(',')[1], mimeType: file.type || 'image/jpeg' });
       setResult(null);
       setError(null);
       setAdded(false);
@@ -142,17 +151,36 @@ export default function EatwiseScanner({ onAdd, onClose }: Props) {
     setLoading(true);
     setError(null);
     setResult(null);
+
+    const prompt = `Analyze this food photo. Return ONLY a raw JSON object, no markdown, no explanation.
+Required format:
+{"meal_name":"...","total":{"calories":0,"protein":0,"fat":0,"carbs":0,"fiber":0},"dishes":[{"name":"...","weight":0,"calories":0,"protein":0,"fat":0,"carbs":0,"fiber":0}],"confidence":"high","note":null}
+Rules: packaged products — use standard nutritional data by brand name. All numbers integers. Names in Russian. Return ONLY JSON.`;
+
     try {
-      const res = await fetch(ANALYZE_URL, {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: imageBase64.data, media_type: imageBase64.media_type }),
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { inline_data: { mime_type: imageBase64.mimeType, data: imageBase64.data } },
+              { text: prompt },
+            ],
+          }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 1000 },
+        }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Ошибка сервера');
-      setResult(json);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error('No JSON in response');
+      setResult(JSON.parse(match[0]));
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Не удалось распознать блюдо. Попробуй другое фото.');
+      console.error(err);
+      setError('Не удалось распознать блюдо. Попробуй другое фото.');
     } finally {
       setLoading(false);
     }
@@ -160,7 +188,8 @@ export default function EatwiseScanner({ onAdd, onClose }: Props) {
 
   const handleAdd = () => {
     if (!result) return;
-    const meal: Meal = {
+    setAdded(true);
+    onAdd({
       name: result.meal_name,
       img: imagePreview || '',
       time: new Date().toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }),
@@ -169,29 +198,18 @@ export default function EatwiseScanner({ onAdd, onClose }: Props) {
       fat: result.total.fat,
       carb: result.total.carbs,
       fiber: result.total.fiber,
-    };
-    setAdded(true);
-    setTimeout(() => {
-      onAdd(meal);
-      onClose();
-    }, 700);
+    });
+    setTimeout(() => onClose(), 800);
   };
 
-  const reset = () => {
-    setImageBase64(null);
-    setImagePreview(null);
-    setResult(null);
-    setError(null);
-    setAdded(false);
-  };
-
-  const confidenceLabel = result?.confidence === 'high' ? '✓ Точно'
-    : result?.confidence === 'medium' ? '~ Примерно' : '? Неточно';
-  const confidenceClass = result?.confidence === 'high'
+  const confidenceBadgeClass = result?.confidence === 'high'
     ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
     : result?.confidence === 'medium'
     ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
     : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+
+  const confidenceLabel = result?.confidence === 'high' ? '✓ Точно'
+    : result?.confidence === 'medium' ? '~ Примерно' : '? Неточно';
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col overflow-y-auto">
@@ -202,17 +220,27 @@ export default function EatwiseScanner({ onAdd, onClose }: Props) {
           <h1 className="font-display text-lg font-extrabold">Сфотографировать еду</h1>
           <p className="text-xs text-muted-foreground">ИИ определит блюдо и КБЖУ</p>
         </div>
-        <button
-          onClick={onClose}
-          className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors"
-        >
-          <Icon name="X" size={18} />
-        </button>
+        <div className="flex items-center gap-2">
+          {imagePreview && (
+            <button
+              onClick={() => { setImageBase64(null); setImagePreview(null); setResult(null); setError(null); setAdded(false); }}
+              className="h-9 px-4 rounded-xl bg-muted text-sm font-medium hover:bg-muted/80 transition-colors"
+            >
+              ↺ Новое
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors"
+          >
+            <Icon name="X" size={18} />
+          </button>
+        </div>
       </header>
 
       <div className="flex-1 max-w-2xl w-full mx-auto px-5 py-5 space-y-4 pb-10">
 
-        {/* Зона загрузки фото */}
+        {/* Зона загрузки */}
         {!imagePreview ? (
           <div className="border-2 border-dashed border-primary/40 rounded-[1.75rem] p-8 flex flex-col items-center gap-5 text-center">
             <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center">
@@ -223,59 +251,30 @@ export default function EatwiseScanner({ onAdd, onClose }: Props) {
               <p className="text-sm text-muted-foreground mt-1">ИИ распознает блюдо и посчитает КБЖУ</p>
             </div>
             <div className="flex gap-3 w-full">
-              <Button
-                className="flex-1 rounded-xl h-12"
-                onClick={() => cameraRef.current?.click()}
-              >
+              <Button className="flex-1 rounded-xl h-12" onClick={() => cameraRef.current?.click()}>
                 <Icon name="Camera" size={18} className="mr-2" />
                 Камера
               </Button>
-              <Button
-                variant="outline"
-                className="flex-1 rounded-xl h-12"
-                onClick={() => fileRef.current?.click()}
-              >
+              <Button variant="outline" className="flex-1 rounded-xl h-12" onClick={() => fileRef.current?.click()}>
                 <Icon name="Image" size={18} className="mr-2" />
                 Галерея
               </Button>
             </div>
-            {/* Камера */}
-            <input
-              ref={cameraRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={e => handleFile(e.target.files?.[0])}
-            />
-            {/* Галерея */}
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={e => handleFile(e.target.files?.[0])}
-            />
+            <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handleFile(e.target.files?.[0])} />
+            <input ref={fileRef}   type="file" accept="image/*" className="hidden" onChange={e => handleFile(e.target.files?.[0])} />
           </div>
         ) : (
           <div className="relative rounded-[1.75rem] overflow-hidden">
-            <img
-              src={imagePreview}
-              alt="Фото еды"
-              className="w-full max-h-72 object-cover block"
-            />
+            <img src={imagePreview} alt="Фото еды" className="w-full max-h-72 object-cover block" />
             {loading && (
               <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-3">
                 <div className="w-11 h-11 rounded-full border-[3px] border-white/20 border-t-primary animate-spin" />
                 <p className="text-white font-semibold text-sm">Анализирую состав…</p>
-                <p className="text-white/60 text-xs">Claude распознаёт блюдо</p>
+                <p className="text-white/60 text-xs">Gemini распознаёт блюдо</p>
               </div>
             )}
             {!loading && (
-              <button
-                onClick={reset}
-                className="absolute top-3 right-3 w-9 h-9 rounded-xl bg-black/50 text-white flex items-center justify-center"
-              >
+              <button onClick={() => { setImageBase64(null); setImagePreview(null); setResult(null); setError(null); }} className="absolute top-3 right-3 w-9 h-9 rounded-xl bg-black/50 text-white flex items-center justify-center">
                 <Icon name="X" size={16} />
               </button>
             )}
@@ -301,29 +300,23 @@ export default function EatwiseScanner({ onAdd, onClose }: Props) {
         {/* Результат */}
         {result && (
           <>
-            {/* Название блюда + уверенность */}
             <div className="bg-card border border-border rounded-[1.75rem] p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Распознано</p>
                   <h2 className="font-display text-xl font-extrabold">{result.meal_name}</h2>
                 </div>
-                <span className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full ${confidenceClass}`}>
+                <span className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full ${confidenceBadgeClass}`}>
                   {confidenceLabel}
                 </span>
               </div>
               {result.note && (
-                <p className="text-sm text-muted-foreground mt-3 pt-3 border-t border-border">
-                  💬 {result.note}
-                </p>
+                <p className="text-sm text-muted-foreground mt-3 pt-3 border-t border-border">💬 {result.note}</p>
               )}
             </div>
 
-            {/* КБЖУ итого */}
             <div className="bg-card border border-border rounded-[1.75rem] p-5 space-y-4">
               <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Итого за приём пищи</p>
-
-              {/* Калории крупно */}
               <div className="flex items-center justify-between py-2 border-b border-border">
                 <span className="font-semibold">Калории</span>
                 <span className="font-display text-2xl font-extrabold" style={{ color: MACRO_COLORS.calories }}>
@@ -331,28 +324,13 @@ export default function EatwiseScanner({ onAdd, onClose }: Props) {
                   <span className="text-sm font-sans font-normal text-muted-foreground ml-1">ккал</span>
                 </span>
               </div>
-
-              <div className="space-y-4">
-                {(['protein', 'fat', 'carbs', 'fiber'] as const).map(m => {
-                  const labels = { protein: 'Белки', fat: 'Жиры', carbs: 'Углеводы', fiber: 'Клетчатка' };
-                  const norm = norms[m];
-                  const val = result.total[m];
-                  const pct = norm ? Math.round((val / norm) * 100) : null;
-                  return (
-                    <MacroRow
-                      key={m}
-                      label={labels[m]}
-                      value={val}
-                      unit="г"
-                      pct={pct}
-                      color={MACRO_COLORS[m]}
-                    />
-                  );
-                })}
+              <div className="grid grid-cols-2 gap-3">
+                {(['protein', 'fat', 'carbs', 'fiber'] as const).map(m => (
+                  <MacroCard key={m} macro={m} value={result.total[m]} daily={norms[m]} />
+                ))}
               </div>
             </div>
 
-            {/* Разбивка по блюдам */}
             {result.dishes?.length > 1 && (
               <div className="space-y-2">
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-1">Разбивка по блюдам</p>
@@ -360,13 +338,10 @@ export default function EatwiseScanner({ onAdd, onClose }: Props) {
               </div>
             )}
 
-            {/* Добавить в дневник */}
             <Button
               onClick={handleAdd}
               disabled={added}
-              className={`w-full h-14 rounded-2xl text-base font-semibold transition-all ${
-                added ? 'bg-green-600 hover:bg-green-600' : ''
-              }`}
+              className={`w-full h-14 rounded-2xl text-base font-semibold transition-all ${added ? 'bg-green-600 hover:bg-green-600' : ''}`}
             >
               {added ? (
                 <><Icon name="Check" size={20} className="mr-2" />Добавлено в дневник</>
