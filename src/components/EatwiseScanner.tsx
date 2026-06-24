@@ -2,8 +2,9 @@ import { useState, useRef } from 'react';
 import Icon from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { LS_KEY } from '@/lib/eatwise-types';
+import func2url from '../../backend/func2url.json';
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string;
+const ANALYZE_URL = func2url['analyze-food'];
 
 const MACRO_COLORS: Record<string, string> = {
   calories: 'hsl(var(--cal))',
@@ -152,32 +153,15 @@ export default function EatwiseScanner({ onAdd, onClose }: Props) {
     setError(null);
     setResult(null);
 
-    const prompt = `Analyze this food photo. Return ONLY a raw JSON object, no markdown, no explanation.
-Required format:
-{"meal_name":"...","total":{"calories":0,"protein":0,"fat":0,"carbs":0,"fiber":0},"dishes":[{"name":"...","weight":0,"calories":0,"protein":0,"fat":0,"carbs":0,"fiber":0}],"confidence":"high","note":null}
-Rules: packaged products — use standard nutritional data by brand name. All numbers integers. Names in Russian. Return ONLY JSON.`;
-
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-      const res = await fetch(url, {
+      const res = await fetch(ANALYZE_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { inline_data: { mime_type: imageBase64.mimeType, data: imageBase64.data } },
-              { text: prompt },
-            ],
-          }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 1000 },
-        }),
+        body: JSON.stringify({ data: imageBase64.data, media_type: imageBase64.mimeType }),
       });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error.message);
-      const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const match = raw.match(/\{[\s\S]*\}/);
-      if (!match) throw new Error('No JSON in response');
-      setResult(JSON.parse(match[0]));
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Ошибка сервера');
+      setResult(json);
     } catch (err: unknown) {
       console.error(err);
       setError('Не удалось распознать блюдо. Попробуй другое фото.');

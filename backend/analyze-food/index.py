@@ -1,11 +1,11 @@
 import json
 import os
+import re
 import urllib.request
-import urllib.error
 
 
 def handler(event: dict, context) -> dict:
-    """Принимает base64-изображение еды, отправляет в Anthropic Claude и возвращает КБЖУ."""
+    """Принимает base64-изображение еды, отправляет в OpenRouter (vision) и возвращает КБЖУ."""
 
     if event.get('httpMethod') == 'OPTIONS':
         return {
@@ -30,49 +30,45 @@ def handler(event: dict, context) -> dict:
             'body': json.dumps({'error': 'No image data provided'}),
         }
 
-    api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+    api_key = os.environ.get('OPENROUTER_API_KEY', '')
 
-    prompt = """Analyze this food photo. Return ONLY a raw JSON object, no markdown, no explanation, no text before or after the JSON.
-
-Required format:
-{"meal_name":"...","total":{"calories":0,"protein":0,"fat":0,"carbs":0,"fiber":0},"dishes":[{"name":"...","weight":0,"calories":0,"protein":0,"fat":0,"carbs":0,"fiber":0}],"confidence":"high","note":null}
-
-Rules:
-- If it's a packaged product (candy bar, snack, drink), read the brand name and use standard nutritional data for that product
-- Estimate portion weight visually
-- All numbers must be integers
-- fiber is required (use 0 if none)
-- meal_name and dish names in Russian
-- confidence: "high" if product is clearly visible, "medium" if estimated, "low" if unclear
-- note: short Russian comment if needed, otherwise null
-- Return ONLY the JSON, nothing else"""
+    prompt = (
+        "Analyze this food photo. Return ONLY a raw JSON object, no markdown, no explanation.\n"
+        'Required format:\n'
+        '{"meal_name":"...","total":{"calories":0,"protein":0,"fat":0,"carbs":0,"fiber":0},'
+        '"dishes":[{"name":"...","weight":0,"calories":0,"protein":0,"fat":0,"carbs":0,"fiber":0}],'
+        '"confidence":"high","note":null}\n'
+        "Rules: packaged products — use standard nutritional data by brand name. "
+        "All numbers integers. meal_name and dish names in Russian. "
+        "confidence: high/medium/low. note: short Russian comment or null. Return ONLY JSON."
+    )
 
     payload = json.dumps({
-        'model': 'claude-sonnet-4-5',
-        'max_tokens': 1000,
+        'model': 'google/gemini-flash-1.5',
         'messages': [{
             'role': 'user',
             'content': [
                 {
-                    'type': 'image',
-                    'source': {
-                        'type': 'base64',
-                        'media_type': media_type,
-                        'data': image_data,
+                    'type': 'image_url',
+                    'image_url': {
+                        'url': f'data:{media_type};base64,{image_data}',
                     },
                 },
                 {'type': 'text', 'text': prompt},
             ],
         }],
+        'max_tokens': 1000,
+        'temperature': 0.1,
     }).encode('utf-8')
 
     req = urllib.request.Request(
-        'https://api.anthropic.com/v1/messages',
+        'https://openrouter.ai/api/v1/chat/completions',
         data=payload,
         headers={
             'Content-Type': 'application/json',
-            'x-api-key': api_key,
-            'anthropic-version': '2023-06-01',
+            'Authorization': f'Bearer {api_key}',
+            'HTTP-Referer': 'https://poehali.dev',
+            'X-Title': 'Eatwise',
         },
         method='POST',
     )
@@ -80,17 +76,14 @@ Rules:
     resp_data = urllib.request.urlopen(req).read()
     resp_json = json.loads(resp_data)
 
-    raw = ''.join(
-        block.get('text', '') for block in (resp_json.get('content') or [])
-    )
+    raw = resp_json.get('choices', [{}])[0].get('message', {}).get('content', '')
 
-    import re
     match = re.search(r'\{[\s\S]*\}', raw)
     if not match:
         return {
             'statusCode': 422,
             'headers': {'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': 'Could not parse Claude response', 'raw': raw[:300]}),
+            'body': json.dumps({'error': 'Could not parse response', 'raw': raw[:300]}),
         }
 
     result = json.loads(match.group(0))
