@@ -31,7 +31,7 @@ def handler(event: dict, context) -> dict:
             'body': json.dumps({'error': 'No image data provided'}),
         }
 
-    api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+    api_key = os.environ.get('OPENROUTER_API_KEY', '')
 
     prompt = (
         "Analyze this food photo. Return ONLY a raw JSON object, no markdown, no explanation.\n"
@@ -45,31 +45,29 @@ def handler(event: dict, context) -> dict:
     )
 
     payload = json.dumps({
-        'model': 'claude-haiku-4-5',
-        'max_tokens': 1000,
+        'model': 'meta-llama/llama-4-maverick:free',
         'messages': [{
             'role': 'user',
             'content': [
                 {
-                    'type': 'image',
-                    'source': {
-                        'type': 'base64',
-                        'media_type': media_type,
-                        'data': image_data,
-                    },
+                    'type': 'image_url',
+                    'image_url': {'url': f'data:{media_type};base64,{image_data}'},
                 },
                 {'type': 'text', 'text': prompt},
             ],
         }],
+        'max_tokens': 1000,
+        'temperature': 0.1,
     }).encode('utf-8')
 
     req = urllib.request.Request(
-        'https://api.anthropic.com/v1/messages',
+        'https://openrouter.ai/api/v1/chat/completions',
         data=payload,
         headers={
             'Content-Type': 'application/json',
-            'x-api-key': api_key,
-            'anthropic-version': '2023-06-01',
+            'Authorization': f'Bearer {api_key}',
+            'HTTP-Referer': 'https://poehali.dev',
+            'X-Title': 'Eatwise',
         },
         method='POST',
     )
@@ -86,7 +84,7 @@ def handler(event: dict, context) -> dict:
 
     resp_json = json.loads(resp_data)
 
-    raw = ''.join(block.get('text', '') for block in (resp_json.get('content') or []))
+    raw = resp_json.get('choices', [{}])[0].get('message', {}).get('content', '')
 
     match = re.search(r'\{[\s\S]*\}', raw)
     if not match:
