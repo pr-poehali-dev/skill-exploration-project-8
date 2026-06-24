@@ -113,6 +113,7 @@ function DishItem({ dish }: { dish: ScanResult['dishes'][0] }) {
 
 export default function EatwiseScanner({ onAdd, onClose }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
   const [imageBase64, setImageBase64] = useState<{ data: string; media_type: string } | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -213,23 +214,45 @@ export default function EatwiseScanner({ onAdd, onClose }: Props) {
 
         {/* Зона загрузки фото */}
         {!imagePreview ? (
-          <div
-            onClick={() => fileRef.current?.click()}
-            className="border-2 border-dashed border-primary/40 rounded-[1.75rem] p-12 flex flex-col items-center gap-4 text-center cursor-pointer hover:bg-primary/5 transition-colors"
-          >
+          <div className="border-2 border-dashed border-primary/40 rounded-[1.75rem] p-8 flex flex-col items-center gap-5 text-center">
             <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center">
               <Icon name="Camera" size={36} className="text-primary" />
             </div>
             <div>
-              <p className="font-display text-lg font-bold">Загрузи фото еды</p>
-              <p className="text-sm text-muted-foreground mt-1">Нажми, чтобы выбрать из галереи<br />или сделать снимок</p>
+              <p className="font-display text-lg font-bold">Добавь фото еды</p>
+              <p className="text-sm text-muted-foreground mt-1">ИИ распознает блюдо и посчитает КБЖУ</p>
             </div>
-            <Button className="rounded-xl px-8">Выбрать фото</Button>
+            <div className="flex gap-3 w-full">
+              <Button
+                className="flex-1 rounded-xl h-12"
+                onClick={() => cameraRef.current?.click()}
+              >
+                <Icon name="Camera" size={18} className="mr-2" />
+                Камера
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl h-12"
+                onClick={() => fileRef.current?.click()}
+              >
+                <Icon name="Image" size={18} className="mr-2" />
+                Галерея
+              </Button>
+            </div>
+            {/* Камера */}
+            <input
+              ref={cameraRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={e => handleFile(e.target.files?.[0])}
+            />
+            {/* Галерея */}
             <input
               ref={fileRef}
               type="file"
               accept="image/*"
-              capture="environment"
               className="hidden"
               onChange={e => handleFile(e.target.files?.[0])}
             />
