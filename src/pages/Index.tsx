@@ -9,6 +9,7 @@ import ProgressRing from '@/components/nutrition/ProgressRing';
 import MacroBar from '@/components/nutrition/MacroBar';
 import { toast } from 'sonner';
 import { useTranslation, Lang } from '@/lib/i18n';
+import EatwiseScanner from '@/components/EatwiseScanner';
 
 const LS_KEY = 'eatwise_weight_goals';
 const LS_SETTINGS = 'eatwise_settings';
@@ -134,6 +135,8 @@ const Index = () => {
   const { week, todayIdx } = getMoscowWeek();
   const [activeDay, setActiveDay] = useState(todayIdx);
   const [weightGoals, setWeightGoals] = useState<WeightGoals>(loadWeightGoals);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [userMeals, setUserMeals] = useState<Record<number, Meal[]>>({});
 
   useEffect(() => {
     const { theme } = loadSettings();
@@ -147,8 +150,23 @@ const Index = () => {
 
   const notify = () => toast(t('photoTitle'), { description: t('photoSub') });
 
+  const handleAddMeal = (meal: Meal) => {
+    setUserMeals(prev => ({
+      ...prev,
+      [activeDay]: [...(prev[activeDay] ?? []), meal],
+    }));
+    toast('Добавлено!', { description: meal.name });
+  };
+
   return (
     <div className="min-h-screen bg-background pb-28">
+      {scannerOpen && (
+        <EatwiseScanner
+          onAdd={handleAddMeal}
+          onClose={() => setScannerOpen(false)}
+        />
+      )}
+
       <header className="max-w-2xl mx-auto px-5 pt-10 pb-4 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center">
@@ -162,7 +180,7 @@ const Index = () => {
       </header>
 
       <main className="max-w-2xl mx-auto px-5">
-        {tab === 'day' && <DayView activeDay={activeDay} setActiveDay={setActiveDay} notify={notify} goals={nutrition} week={week} todayIdx={todayIdx} />}
+        {tab === 'day' && <DayView activeDay={activeDay} setActiveDay={setActiveDay} onOpenScanner={() => setScannerOpen(true)} goals={nutrition} week={week} todayIdx={todayIdx} userMeals={userMeals[activeDay] ?? []} />}
         {tab === 'example' && <ExampleView goals={nutrition} onStart={() => setTab('day')} />}
         {tab === 'goals' && <GoalsView notify={notify} weightGoals={weightGoals} onSave={setWeightGoals} />}
         {tab === 'profile' && <ProfileView notify={notify} />}
@@ -195,23 +213,54 @@ const Index = () => {
   );
 };
 
+const MealCard = ({ m, kcal }: { m: Meal; kcal: string }) => (
+  <div className="bg-card border border-border rounded-[1.5rem] p-3 flex items-center gap-4">
+    {m.img ? (
+      <img src={m.img} alt={m.name} className="w-16 h-16 rounded-2xl object-cover shrink-0" />
+    ) : (
+      <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center shrink-0">
+        <Icon name="Utensils" size={22} className="text-muted-foreground" />
+      </div>
+    )}
+    <div className="flex-1 min-w-0">
+      <div className="flex items-center gap-2">
+        <p className="font-semibold truncate">{m.name}</p>
+        <span className="text-xs text-muted-foreground">{m.time}</span>
+      </div>
+      <div className="flex gap-3 mt-1.5 text-xs text-muted-foreground">
+        <span className="text-macroProtein font-medium">Б {m.protein}</span>
+        <span className="text-macroFat font-medium">Ж {m.fat}</span>
+        <span className="text-macroCarb font-medium">У {m.carb}</span>
+        <span className="text-macroFiber font-medium">Кл {m.fiber}</span>
+      </div>
+    </div>
+    <div className="text-right">
+      <p className="font-display font-bold text-cal">{m.cal}</p>
+      <p className="text-[11px] text-muted-foreground">{kcal}</p>
+    </div>
+  </div>
+);
+
 const DayView = ({
   activeDay,
   setActiveDay,
-  notify,
+  onOpenScanner,
   goals,
   week,
   todayIdx,
+  userMeals,
 }: {
   activeDay: number;
   setActiveDay: (n: number) => void;
-  notify: () => void;
+  onOpenScanner: () => void;
   goals: ReturnType<typeof calcNutrition>;
   week: number[];
   todayIdx: number;
+  userMeals: Meal[];
 }) => {
   const { t } = useTranslation();
-  const meals = MEALS_BY_DAY[activeDay] ?? [];
+  const staticMeals = MEALS_BY_DAY[activeDay] ?? [];
+  const meals = [...staticMeals, ...userMeals];
   const eaten = sumMeals(meals);
   return (
   <div className="space-y-6 animate-fade-in">
@@ -245,7 +294,7 @@ const DayView = ({
     </section>
 
     <button
-      onClick={notify}
+      onClick={onOpenScanner}
       className="w-full group relative overflow-hidden rounded-[1.75rem] bg-primary text-primary-foreground p-6 flex items-center gap-4 hover:opacity-95 transition-opacity"
     >
       <div className="w-14 h-14 rounded-2xl bg-primary-foreground/15 flex items-center justify-center shrink-0">
@@ -268,27 +317,7 @@ const DayView = ({
           <p>{t('noMeals')}</p>
         </div>
       )}
-      {meals.map((m, i) => (
-        <div key={i} className="bg-card border border-border rounded-[1.5rem] p-3 flex items-center gap-4">
-          <img src={m.img} alt={m.name} className="w-16 h-16 rounded-2xl object-cover" />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="font-semibold truncate">{m.name}</p>
-              <span className="text-xs text-muted-foreground">{m.time}</span>
-            </div>
-            <div className="flex gap-3 mt-1.5 text-xs text-muted-foreground">
-              <span className="text-macroProtein font-medium">Б {m.protein}</span>
-              <span className="text-macroFat font-medium">Ж {m.fat}</span>
-              <span className="text-macroCarb font-medium">У {m.carb}</span>
-              <span className="text-macroFiber font-medium">Кл {m.fiber}</span>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="font-display font-bold text-cal">{m.cal}</p>
-            <p className="text-[11px] text-muted-foreground">{t('kcal')}</p>
-          </div>
-        </div>
-      ))}
+      {meals.map((m, i) => <MealCard key={i} m={m} kcal={t('kcal')} />)}
     </section>
   </div>
   );
